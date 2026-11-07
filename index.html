@@ -771,7 +771,7 @@ function growthHtml(){
 }
 function renderStats(){
   const t0 = dayStart(Date.now()), days = [6,5,4,3,2,1,0].map(i=>addDays(t0,-i)), S = days.map(dayStats), a = age(), N = norms(a.weeks);
-  const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightTotal(d)/HOUR).toFixed(1));
+  const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightTotal(d)/HOUR).toFixed(1)), longest = days.map(d=>+(nightLongest(d)/HOUR).toFixed(1));
   const full = S.slice(0,6);
   const avg = arr => { const x = arr.filter(Boolean); return x.length ? x.reduce((p,c)=>p+c,0)/x.length : 0; };
   let h = `<h2>Paskutinės 7 dienos</h2>`;
@@ -779,6 +779,8 @@ function renderStats(){
     ${chart(sleepH, "var(--sleep)", v=>String(v).replace(".",","), N.sleep)}<div class="legend">Brūkšniuota juosta – rekomenduojamas kiekis jos amžiui (${N.label})</div></div>`;
   h += `<div class="card"><div style="font-weight:700">Nakties miegas</div><div class="muted small">Vidurkis ${avg(night).toFixed(1).replace(".",",")} val.</div>
     ${chart(night, "color-mix(in srgb,var(--sleep) 60%,var(--accent))", v=>String(v).replace(".",","))}</div>`;
+  h += `<div class="card"><div style="font-weight:700">Ilgiausias nepertraukiamas nakties miegas</div><div class="muted small">Vidurkis ${avg(longest).toFixed(1).replace(".",",")} val. · rekordas per savaitę ${String(Math.max(...longest)).replace(".",",")} val.</div>
+    ${chart(longest, "color-mix(in srgb,var(--sleep) 40%,var(--accent))", v=>String(v).replace(".",","))}</div>`;
   h += `<div class="card"><div style="font-weight:700">Maitinimai</div><div class="muted small">Vidurkis ${avg(full.map(s=>s.feeds.length)).toFixed(1).replace(".",",")} per parą · įprasta ${N.feeds[0]}–${N.feeds[1]}</div>
     ${chart(feeds, "var(--feed)", v=>v, N.feeds)}</div>`;
   if(pump.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Nutrauktas pienas</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.pumpMl)))} ml per dieną</div>
