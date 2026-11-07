@@ -981,11 +981,15 @@ addEventListener("online", sync);
 /* =========================================================
    Boot
    ========================================================= */
+function pairFromHash(){
+  const m = location.hash.match(/pair=([^&]+)/); if(!m) return false;
+  try{ const p = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    if(p.u){ cfg = {url:p.u, key:p.k||""}; LS.set("lp_cfg", cfg); since = 0; LS.set("lp_since",0); queue = Object.keys(entries); saveLocal(); setTimeout(()=>toast("Sinchronizacija įjungta ✓"), 600); } }catch(e){}
+  history.replaceState(null, "", location.pathname); return true;
+}
+addEventListener("hashchange", () => { if(pairFromHash()){ render(); sync(); } });
 (function boot(){
-  const m = location.hash.match(/pair=([^&]+)/);
-  if(m){ try{ const p = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
-      if(p.u){ cfg = {url:p.u, key:p.k||""}; LS.set("lp_cfg", cfg); since = 0; LS.set("lp_since",0); queue = Object.keys(entries); saveLocal(); setTimeout(()=>toast("Sinchronizacija įjungta ✓"), 600); } }catch(e){}
-    history.replaceState(null, "", location.pathname); }
+  pairFromHash();
   render(); setSync(""); sync();
   if(!who) setTimeout(whoSheet, 400);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
