@@ -249,8 +249,8 @@ function fromInput(v){ return v ? new Date(v).getTime() : null; }
 function dayTitle(ms){
   const t = dayStart(Date.now());
   if(ms===t) return "Šiandien"; if(ms===addDays(t,-1)) return "Vakar";
-  const t = new Date(ms).toLocaleDateString("lt-LT",{weekday:"long",month:"long",day:"numeric"});
-  return t.charAt(0).toUpperCase() + t.slice(1);
+  const x = new Date(ms).toLocaleDateString("lt-LT",{weekday:"long",month:"long",day:"numeric"});
+  return x.charAt(0).toUpperCase() + x.slice(1);
 }
 const WD = ["Sk","Pr","An","Tr","Kt","Pn","Št"];
 
@@ -424,11 +424,17 @@ function dayStats(d0){
   const sleepMs = sleeps.reduce((a,e)=>a+inRange(e,d0,d1),0);
   const naps = sleeps.filter(e => e.d?.k==="nap" && e.s>=d0).length;
   const breastMs = feeds.filter(f=>f.d?.m==="breast").reduce((a,f)=>a+breastTimes(f).tot,0);
-  const bottleMl = feeds.filter(f=>f.d?.m==="bottle").reduce((a,f)=>a+(+f.d.ml||0),0);
+  const bottles = feeds.filter(f=>f.d?.m==="bottle");
+  const bottleMl = bottles.reduce((a,f)=>a+(+f.d.ml||0),0);
+  const formulaMl = bottles.reduce((a,f)=>a+bottleSplit(f).fm,0);
   const pumpMl = pumps.reduce((a,p)=>a+(+p.d?.l||0)+(+p.d?.r||0)+(+p.d?.ml||0),0);
-  return {sleeps, feeds, pumps, diapers, sleepMs, naps, breastMs, bottleMl, pumpMl,
+  return {sleeps, feeds, pumps, diapers, sleepMs, naps, breastMs, bottleMl, formulaMl, pumpMl,
     wet: diapers.filter(x=>x.d?.w).length, dirty: diapers.filter(x=>x.d?.p).length};
 }
+function bottleSplit(f){ const d = f.d||{}, ml = +d.ml||0;
+  if(d.milk==="mix") return {bm:+d.bm||0, fm:+d.fm||0};
+  if(d.milk==="formula") return {bm:0, fm:ml};
+  return {bm:ml, fm:0}; }
 function breastTimes(f){
   const d = f.d||{}; let l=+d.l||0, r=+d.r||0;
   if(f.e==null && d.ss){ const x = Date.now()-d.ss; if(d.side==="R") r+=x; else l+=x; }
@@ -582,7 +588,7 @@ function renderHome(){
   h += `<h2>Šiandien <small>${new Date().toLocaleDateString("lt-LT",{weekday:"long",month:"long",day:"numeric"})}</small></h2>`;
   h += `<div class="card"><div class="sum">
     <div><div class="k"><span class="dot feed"></span>Maitinimai</div><div class="v">${s.feeds.length}</div>
-      <div class="d">${[s.breastMs?`krūtis ${dur(s.breastMs)}`:"", s.bottleMl?`buteliukas ${s.bottleMl} ml`:""].filter(Boolean).join(" · ")||"&nbsp;"}</div></div>
+      <div class="d">${[s.breastMs?`krūtis ${dur(s.breastMs)}`:"", s.bottleMl?`buteliukas ${s.bottleMl} ml${s.formulaMl?` (mišinys ${s.formulaMl})`:""}`:""].filter(Boolean).join(" · ")||"&nbsp;"}</div></div>
     <div><div class="k"><span class="dot sleep"></span>Miegas</div><div class="v">${hhmm(s.sleepMs)} val.</div>
       <div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}</div></div>
     <div><div class="k"><span class="dot pump"></span>Nutraukta</div><div class="v">${s.pumpMl} ml</div>
@@ -622,12 +628,12 @@ function describe(e){
   if(e.t==="feed"){
     if(d.m==="breast"){ const bt = breastTimes(e);
       return {t:"Maitinimas krūtimi", d:[bt.l?`K ${dur(bt.l)}`:"", bt.r?`D ${dur(bt.r)}`:""].filter(Boolean).join(" · ") || SIDE[d.side]}; }
-    if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":d.milk==="mix"?"pienas + mišinys":"motinos pienas"}`};
+    if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":d.milk==="mix"?`${+d.bm||0} pienas + ${+d.fm||0} mišinys`:"motinos pienas"}`};
     return {t:"Papildomas maistas", d:d.food||""};
   }
   if(e.t==="sleep"){ const pz = pauseMs(e), n = pauses(e).length;
     return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
-  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e?` · ${dur(activeMs(e))}`:""}`};
+  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e&&activeMs(e)>=MIN?` · ${dur(activeMs(e))}`:""}`};
   if(e.t==="diaper") return {t:"Sauskelnės", d:[d.w?"šlapios":"", d.p?"purvinos":""].filter(Boolean).join(" ir ")||"sausos"};
   return {t:e.t, d:""};
 }
@@ -678,7 +684,7 @@ function renderStats(){
   if(pump.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Nutrauktas pienas</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.pumpMl)))} ml per dieną</div>
     ${chart(pump, "var(--pump)", v=>v)}</div>`;
   const b = S.map(s=>s.bottleMl);
-  if(b.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Išgerta iš buteliuko</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.bottleMl)))} ml per dieną</div>
+  if(b.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Išgerta iš buteliuko</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.bottleMl)))} ml per dieną${full.some(s=>s.formulaMl)?`, iš jų mišinys ~${Math.round(avg(full.filter(s=>s.bottleMl).map(s=>s.formulaMl))||0)} ml`:""}</div>
     ${chart(b, "color-mix(in srgb,var(--feed) 60%,var(--pump))", v=>v)}</div>`;
   h += `<p class="disc">Vidurkiai skaičiuojami iš dienų, kuriose yra įrašų (be šiandienos). Kiekvienas kūdikis skirtingas – rekomendacijos yra orientacinės.</p>`;
   $("#pg-stats").innerHTML = h;
@@ -890,7 +896,10 @@ function editSheet(e, isNew){
       <label class="f">Pradėta nuo</label><div class="seg" id="xFirst"><button data-v="L" class="${(d.first||d.side)==="L"?"on":""}">Kairės</button><button data-v="R" class="${(d.first||d.side)==="R"?"on":""}">Dešinės</button></div>`;
   }
   if(e.t==="feed" && d.m==="bottle"){
-    f += `<label class="f">Kiekis, ml</label><input class="in" id="xMl" type="number" inputmode="numeric" placeholder="pvz. 120" value="${esc(d.ml)}">
+    const mix = d.milk==="mix";
+    f += `<div id="xOne" class="${mix?"hide":""}"><label class="f">Kiekis, ml</label><input class="in" id="xMl" type="number" inputmode="numeric" placeholder="pvz. 120" value="${esc(d.ml)}"></div>
+      <div id="xTwo" class="two ${mix?"":"hide"}"><div><label class="f">Mamos pienas, ml</label><input class="in" id="xBm" type="number" inputmode="numeric" value="${esc(d.bm??"")}"></div>
+      <div><label class="f">Mišinys, ml</label><input class="in" id="xFm" type="number" inputmode="numeric" value="${esc(d.fm??"")}"></div></div>
       <label class="f">Kas buteliuke</label><div class="seg" id="xMilk"><button data-v="breast" class="${d.milk!=="formula"&&d.milk!=="mix"?"on":""}">Motinos pienas</button><button data-v="formula" class="${d.milk==="formula"?"on":""}">Mišinys</button><button data-v="mix" class="${d.milk==="mix"?"on":""}">Abu</button></div>`;
   }
   if(e.t==="feed" && d.m==="solid") f += `<label class="f">Ką valgė</label><input class="in" id="xFood" placeholder="pvz. moliūgų tyrelė" value="${esc(d.food)}">`;
@@ -907,7 +916,8 @@ function editSheet(e, isNew){
   f += `<label class="f">Pastaba</label><input class="in" id="xN" placeholder="nebūtina" value="${esc(e.n)}">`;
   openSheet(`<h3>${title}</h3>${f}<div class="btns">${isNew?"":`<button class="btn del" id="xDel">Ištrinti</button>`}<button class="btn" id="xCancel">Atšaukti</button><button class="btn pri" id="xSave">Išsaugoti</button></div>`);
   const sheet = $("#sheet");
-  sheet.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); };
+  sheet.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+    if(b.parentNode.id==="xMilk"){ const m = b.dataset.v==="mix"; $("#xOne").classList.toggle("hide", m); $("#xTwo").classList.toggle("hide", !m); } };
   const segv = id => sheet.querySelector(`#${id} .on`)?.dataset.v;
   $("#xCancel").onclick = closeSheet;
   if($("#xDel")) $("#xDel").onclick = () => { closeSheet(); remove(entries[e.id] || e); };
@@ -916,7 +926,9 @@ function editSheet(e, isNew){
     e.s = s;
     if(point) e.e = s; else if(!run){ const en = fromInput($("#xE").value); e.e = en && en > s ? en : s; }
     if(e.t==="feed" && d.m==="breast"){ d.first = segv("xFirst") || d.first; if(!run){ d.l = (+$("#xL").value||0)*MIN; d.r = (+$("#xR").value||0)*MIN; d.side = d.r && !d.l ? "R" : d.l && !d.r ? "L" : d.side; } }
-    if(e.t==="feed" && d.m==="bottle"){ d.ml = +$("#xMl").value || ""; d.milk = segv("xMilk"); }
+    if(e.t==="feed" && d.m==="bottle"){ d.milk = segv("xMilk");
+      if(d.milk==="mix"){ d.bm = +$("#xBm").value||0; d.fm = +$("#xFm").value||0; d.ml = d.bm + d.fm || ""; }
+      else { d.ml = +$("#xMl").value || ""; delete d.bm; delete d.fm; } }
     if(e.t==="feed" && d.m==="solid") d.food = $("#xFood").value.trim();
     if(e.t==="sleep") d.k = segv("xK");
     if(e.t==="pump"){ d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; }
