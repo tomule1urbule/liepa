@@ -1110,12 +1110,22 @@ function sleepSheet(){
   const h = new Date().getHours(); let k = (h>=21||h<6) ? "night" : "nap", ago = 0;
   openSheet(`<h3>Miegas</h3>
     <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
-    <label class="f">Užmigo</label><div class="seg" id="zAgo"><button data-v="0" class="on">Dabar</button><button data-v="5">−5 min.</button><button data-v="10">−10 min.</button><button data-v="15">−15 min.</button></div>
+    <label class="f">Užmigo</label>
+    <input class="in" id="zT" type="time" value="${hm(Date.now())}" style="font-size:22px;font-weight:700;text-align:center">
+    <div class="seg" id="zAgo" style="margin-top:8px"><button data-v="0" class="on">Dabar</button><button data-v="5">−5</button><button data-v="10">−10</button><button data-v="15">−15</button><button data-v="30">−30</button></div>
+    <div class="muted small" style="margin-top:6px">Įveskite laiką arba bakstelėkite, prieš kiek minučių užmigo – laikmatis skaičiuos nuo nurodyto laiko.</div>
     <div class="btns"><button class="btn pri" id="zStart">▶ Pradėti laikmatį</button></div>
     <div class="btns"><button class="btn" id="zPast">✎ Įrašyti praėjusį miegą</button></div>`);
   const sh = $("#sheet");
-  sh.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); };
-  $("#zStart").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; ago = +sh.querySelector("#zAgo .on").dataset.v; closeSheet(); startSleep(Date.now()-ago*MIN, k); };
+  sh.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+    if(b.parentNode.id==="zAgo") $("#zT").value = hm(Date.now() - (+b.dataset.v)*MIN); };
+  $("#zT").oninput = () => sh.querySelectorAll("#zAgo button").forEach(x=>x.classList.remove("on"));
+  $("#zStart").onclick = () => {
+    k = sh.querySelector("#zK .on").dataset.v;
+    const [hh, mm] = ($("#zT").value || hm(Date.now())).split(":").map(Number);
+    const d = new Date(); d.setHours(hh, mm, 0, 0); let at = d.getTime();
+    if(at > Date.now() + MIN) at -= DAY;            // e.g. 23:40 entered after midnight → yesterday
+    closeSheet(); startSleep(Math.min(at, Date.now()), k); };
   $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; editSheet({id:uid(), t:"sleep", s:Date.now()-60*MIN, e:Date.now(), d:{k}}, true); };
 }
 function startPump(){ put({id:uid(), t:"pump", s:Date.now(), e:null, d:{l:"",r:""}}); toast("Nutraukimas pradėtas"); }
