@@ -1191,7 +1191,7 @@ function addSheet(){
     ${age().weeks>=17?`<button class="opt" data-n="solid">🥣 Papildomas maistas</button>`:""}</div>`);
   $("#sheet").onclick = ev => { const b = ev.target.closest("[data-n]"); if(!b) return; const n = b.dataset.n, id = uid();
     const T = {breast:{t:"feed",d:{m:"breast",first:"L",side:"L",l:10*MIN,r:10*MIN},len:20}, bottle:{t:"feed",d:{m:"bottle",ml:"",milk:"breast"},len:0},
-      solid:{t:"feed",d:{m:"solid",food:""},len:0}, sleep:{t:"sleep",d:{k:"nap"},len:60}, pump:{t:"pump",d:{l:"",r:""},len:15}, diaper:{t:"diaper",d:{w:true,p:false},len:0},
+      solid:{t:"feed",d:{m:"solid",food:""},len:0}, sleep:{t:"sleep",d:{k:"nap"},len:60}, pump:{t:"pump",d:{l:"",r:""},len:0}, diaper:{t:"diaper",d:{w:true,p:false},len:0},
       bath:{t:"bath",d:{},len:0}, weight:{t:"weight",d:{g:"",h:"",hc:""},len:0}, vaccine:{t:"vaccine",d:{name:""},len:0}}[n];
     editSheet({id, t:T.t, s:base-T.len*MIN, e:base, d:T.d}, true);
   };
@@ -1200,7 +1200,8 @@ function addSheet(){
 function editSheet(e, isNew){
   e = JSON.parse(JSON.stringify(e)); const d = e.d = e.d||{};
   const run = e.e==null;
-  const title = isNew ? "Naujas įrašas" : "Taisyti įrašą";
+  const TT = {pump:"Pieno nutraukimas", diaper:"Sauskelnės", bath:"Maudynės", weight:"Svoris ir ūgis", vaccine:"Skiepas", sleep:"Miegas"};
+  const title = isNew ? (TT[e.t] || (e.d?.m==="bottle" ? "Buteliukas" : e.d?.m==="solid" ? "Papildomas maistas" : "Naujas įrašas")) : "Taisyti įrašą";
   let f = "";
   if(e.t==="feed" && d.m==="breast"){
     const bt = breastTimes(e);
@@ -1233,7 +1234,7 @@ function editSheet(e, isNew){
     <datalist id="vacList">${["6-valentė (DTaP-IPV-Hib-HepB)","Pneumokokinė (PCV)","Rotavirusinė","Meningokokinė B","Meningokokinė ACWY","Tymų, epideminio parotito, raudonukės (MMR)","Vėjaraupių","Gripo","Erkinio encefalito","Hepatito B","Tuberkuliozės (BCG)"].map(v=>`<option value="${v}">`).join("")}</datalist>`;
   if(e.t==="diaper") f += `<label class="chk"><input type="checkbox" id="xW" ${d.w?"checked":""}> 💧 Šlapios</label><label class="chk"><input type="checkbox" id="xP" ${d.p?"checked":""}> 💩 Purvinos</label>`;
 
-  const point = ["diaper","bath","weight","vaccine"].includes(e.t) || (e.t==="feed" && d.m!=="breast");
+  const point = ["diaper","bath","weight","vaccine"].includes(e.t) || (e.t==="pump" && e.e!=null) || (e.t==="feed" && d.m!=="breast");
   f += point ? `<label class="f">Laikas</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">
       ${isNew?`<div class="seg" id="xAgo" style="margin-top:8px"><button data-v="0" class="on">Dabar</button><button data-v="5">−5</button><button data-v="10">−10</button><button data-v="15">−15</button><button data-v="30">−30</button><button data-v="60">−60</button></div>`:""}`
     : `<label class="f">Pradžia</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">
@@ -1337,7 +1338,7 @@ document.addEventListener("click", ev => {
     if(k==="bottle") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"bottle", ml:"", milk:(lastOf("feed",e=>e.d?.m==="bottle")?.d.milk)||"breast"}}, true);
     if(k==="breast"){ const f = run.find(e=>e.t==="feed"); if(f){ stopEntry(f); toast(`Maitinimas: ${dur(breastTimes(f).tot)}`); } else feedSheet(); }
     if(k==="sleep") sleepSheet();
-    if(k==="pump"){ const p = run.find(e=>e.t==="pump"); if(p){ stopEntry(p); editSheet(p); } else pumpSheet(); }
+    if(k==="pump"){ const p = run.find(e=>e.t==="pump"); if(p){ stopEntry(p); editSheet(p); } else editSheet({id:uid(), t:"pump", s:Date.now(), e:Date.now(), d:{l:"",r:""}}, true); }
     if(k==="diaper") diaperSheet();
     if(k==="bath") editSheet({id:uid(), t:"bath", s:Date.now(), e:Date.now(), d:{}}, true);
     if(k==="solid") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"solid", food:""}}, true);
