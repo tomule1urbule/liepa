@@ -511,6 +511,10 @@ function breastTimes(f){
   return {l, r, tot:l+r};
 }
 function lastOf(t, pred=()=>true){ return list().filter(e=>e.t===t && pred(e)).sort((a,b)=>b.s-a.s)[0]; }
+function nightTotal(d0){ // total night sleep: night sleeps started 18:00 of d0-1 .. 11:00 of d0
+  const a = addDays(d0,-1) + 18*HOUR, b = d0 + 11*HOUR;
+  return list().filter(e=>e.t==="sleep" && e.s>=a && e.s<b && e.d?.k==="night").reduce((t,e)=>t+activeMs(e),0);
+}
 function nightLongest(d0){ // night from 18:00 of d0-1 to 11:00 of d0
   const a = addDays(d0,-1) + 18*HOUR, b = d0 + 11*HOUR;
   return list().filter(e=>e.t==="sleep" && e.e && e.s>=a && e.s<b && e.d?.k==="night").reduce((m,e)=>Math.max(m,...segs(e).map(([x,y])=>y-x)),0);
@@ -552,12 +556,12 @@ function smartTips(){
 
 
   // Last night
-  const t0 = dayStart(now), nl = nightLongest(t0);
+  const t0 = dayStart(now), nl = nightTotal(t0);
   if(nl && new Date().getHours() < 14){
-    const prev = [1,2,3,4,5,6,7].map(i=>nightLongest(addDays(t0,-i))).filter(Boolean);
+    const prev = [1,2,3,4,5,6,7].map(i=>nightTotal(addDays(t0,-i))).filter(Boolean);
     const avg = prev.length ? prev.reduce((a,b)=>a+b,0)/prev.length : 0;
-    if(avg && nl - avg > 30*MIN) tips.push({c:"good", i:"🎉", x:`Praėjusią naktį ilgiausiai miegojo be pertraukos <b>${dur(nl)}</b> – ${dur(nl-avg)} ilgiau nei savaitės vidurkis!`});
-    else tips.push({i:"🌜", x:`Ilgiausias praėjusios nakties miegas – <b>${dur(nl)}</b>${avg?` (savaitės vidurkis ${dur(avg)})`:""}.`});
+    if(avg && nl - avg > 30*MIN) tips.push({c:"good", i:"🎉", x:`Praėjusios nakties miegas – <b>${dur(nl)}</b>, ${dur(nl-avg)} daugiau nei savaitės vidurkis!`});
+    else tips.push({i:"🌜", x:`Praėjusios nakties miegas – <b>${dur(nl)}</b>${avg?` (savaitės vidurkis ${dur(avg)})`:""}.`});
   }
   // Yesterday sleep total vs norm (only if logging looks complete)
   const y = dayStats(addDays(t0,-1));
@@ -647,13 +651,13 @@ function renderHome(){
   }
 
   // day summary with day switcher
-  const feeds = s.feeds.length, nl = nightLongest(d0);
+  const feeds = s.feeds.length, nl = nightTotal(d0);
   const feedSub = [s.bottleMl?`${s.bottleMl} ml${s.formulaMl?` (mišinys ${s.formulaMl})`:""}`:"", s.breastMs?`krūtis ${dur(s.breastMs)}`:""].filter(Boolean).join(" · ");
   h += `<div class="card daycard">
     <div class="daynav"><button class="iconbtn" data-day="-1">‹</button><div class="t">${dayTitle(d0)}<div class="muted small">${isToday?"dienos suvestinė":ageText(age(d0))}</div></div><button class="iconbtn" data-day="1" ${isToday?"disabled style='opacity:.3'":""}>›</button></div>
     <div class="tiles">
       <div class="tile feed"><div class="k">🍼 Maitinimai</div><div class="v">${feeds}</div><div class="d">${feedSub||"&nbsp;"}</div></div>
-      <div class="tile sleep"><div class="k">😴 Miegas</div><div class="v">${dur(s.sleepMs)}</div><div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · naktį ilgiausiai ${dur(nl)}`:""}</div></div>
+      <div class="tile sleep"><div class="k">😴 Miegas</div><div class="v">${dur(s.sleepMs)}</div><div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · praėjusi naktis ${dur(nl)}`:""}</div></div>
       <div class="tile diaper"><div class="k">🧷 Sauskelnės</div><div class="v">${s.diapers.length}</div><div class="d">${s.wet} šlapios · ${s.dirty} purvinos</div></div>
       <div class="tile pump"><div class="k">🥛 Nutraukta</div><div class="v">${s.pumpMl} ml</div><div class="d">${s.pumps.length} ${pl(s.pumps.length,["kartas","kartai","kartų"])}</div></div>
     </div></div>`;
@@ -767,13 +771,13 @@ function growthHtml(){
 }
 function renderStats(){
   const t0 = dayStart(Date.now()), days = [6,5,4,3,2,1,0].map(i=>addDays(t0,-i)), S = days.map(dayStats), a = age(), N = norms(a.weeks);
-  const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightLongest(d)/HOUR).toFixed(1));
+  const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightTotal(d)/HOUR).toFixed(1));
   const full = S.slice(0,6);
   const avg = arr => { const x = arr.filter(Boolean); return x.length ? x.reduce((p,c)=>p+c,0)/x.length : 0; };
   let h = `<h2>Paskutinės 7 dienos</h2>`;
   h += `<div class="card"><div style="font-weight:700">Miegas per parą</div><div class="muted small">Vidurkis ${avg(full.map(s=>s.sleepMs/HOUR)).toFixed(1).replace(".",",")} val. · rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.</div>
     ${chart(sleepH, "var(--sleep)", v=>String(v).replace(".",","), N.sleep)}<div class="legend">Brūkšniuota juosta – rekomenduojamas kiekis jos amžiui (${N.label})</div></div>`;
-  h += `<div class="card"><div style="font-weight:700">Ilgiausias nakties miegas</div><div class="muted small">Vidurkis ${avg(night).toFixed(1).replace(".",",")} val.</div>
+  h += `<div class="card"><div style="font-weight:700">Nakties miegas</div><div class="muted small">Vidurkis ${avg(night).toFixed(1).replace(".",",")} val.</div>
     ${chart(night, "color-mix(in srgb,var(--sleep) 60%,var(--accent))", v=>String(v).replace(".",","))}</div>`;
   h += `<div class="card"><div style="font-weight:700">Maitinimai</div><div class="muted small">Vidurkis ${avg(full.map(s=>s.feeds.length)).toFixed(1).replace(".",",")} per parą · įprasta ${N.feeds[0]}–${N.feeds[1]}</div>
     ${chart(feeds, "var(--feed)", v=>v, N.feeds)}</div>`;
@@ -814,7 +818,7 @@ function renderTips(){
   h += `<h2>Pagal jūsų įrašus</h2>`;
   if(S.length){
     const avgSleep = S.reduce((p,s)=>p+s.sleepMs,0)/S.length/HOUR, avgFeeds = S.reduce((p,s)=>p+s.feeds.length,0)/S.length, avgNaps = S.reduce((p,s)=>p+s.naps,0)/S.length;
-    const nights = [0,1,2,3,4,5,6].map(i=>nightLongest(addDays(t0,-i))).filter(Boolean);
+    const nights = [0,1,2,3,4,5,6].map(i=>nightTotal(addDays(t0,-i))).filter(Boolean);
     const lines = [];
     lines.push(`Vidutiniškai miega <b>${avgSleep.toFixed(1).replace(".",",")} val.</b> per parą – ${avgSleep<N.sleep[0]-0.5?"šiek tiek mažiau nei rekomenduojama":avgSleep>N.sleep[1]+0.5?"daugiau nei įprasta":"tiek, kiek rekomenduojama"} (${N.sleep[0]}–${N.sleep[1]} val.).`);
     lines.push(`Valgo vidutiniškai <b>${avgFeeds.toFixed(1).replace(".",",")} kartų</b> per parą (įprasta ${N.feeds[0]}–${N.feeds[1]}).`);
@@ -823,7 +827,7 @@ function renderTips(){
     if(wg.length>1){ const l = wg[wg.length-1], r0 = [...wg].reverse().find(e=>l.s-e.s>=6*DAY);
       if(r0){ const pw = Math.round((l.d.g-r0.d.g)/((l.s-r0.s)/(7*DAY))), Ng = weightGainNorm(a.weeks);
         lines.push(`Svoris ${fmtKg(l.d.g)}, priaugo ~<b>${pw} g/sav.</b> (įprasta ${Ng[0]}–${Ng[1]} g/sav.).`); } }
-    if(nights.length) lines.push(`Ilgiausias nakties miegas per savaitę – <b>${dur(Math.max(...nights))}</b>.`);
+    if(nights.length) lines.push(`Nakties miegas per savaitę vidutiniškai – <b>${dur(nights.reduce((p,c)=>p+c,0)/nights.length)}</b>.`);
     h += `<div class="card"><ul class="nice">${lines.map(x=>`<li>${dots(x)}</li>`).join("")}</ul><div class="muted small" style="margin-top:6px">Paskutinių ${S.length} d. duomenys</div></div>`;
   } else h += `<div class="card muted">Kai pažymėsite bent vieną pilną dieną, čia matysite, kaip ${esc(b.name)} miega ir valgo, palyginti su jos amžiaus rekomendacijomis.</div>`;
 
