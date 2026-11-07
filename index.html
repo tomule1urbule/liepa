@@ -151,6 +151,14 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .sg .v{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
 .sg .d{font-size:11.5px;color:var(--muted)}
 .selinfo{margin-top:8px;padding:8px 10px;background:var(--soft);border-radius:10px;font-size:13.5px}
+h2[id^="sec-"]{scroll-margin-top:80px}
+.more3{text-align:center;color:var(--accent);font-weight:700;font-size:13.5px;margin-top:10px;cursor:pointer}
+.cmp{font-weight:600}.cmp.up{color:var(--warn)}.cmp.dn{color:var(--sleep)}.cmp.eq{color:var(--good)}
+.srow{padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.srow:last-child{border-bottom:0}
+.wrow{padding:4px 0 4px 18px;font-size:12.5px;color:var(--muted)}
+.sdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:var(--sleep)}
+.sdot.nap{background:color-mix(in srgb,var(--sleep) 50%,transparent)}.sdot.feed{background:var(--feed)}.sdot.pump{background:var(--pump)}
 /* action grid */
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
 .gb{border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);border-radius:18px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:112px}
@@ -656,7 +664,86 @@ function gridBtn(k, ic, label, sub, live, liveStart, info){
     <span class="s">${live ? `<span class="tick2" data-s="${liveStart}">${clock(Date.now()-liveStart)}</span>` : sub}</span>${info?`<span class="i">${info}</span>`:""}</button>`;
 }
 function milkTxt(f){ const d = f.d; return d.milk==="formula" ? "mišinys" : d.milk==="mix" ? `${+d.bm||0} pienas + ${+d.fm||0} miš.` : "mamos pienas"; }
+let dayX = false, dayXSec = null;
+function cmp(v, avg, unit, fmt){ // comparison vs 7-day average
+  if(!avg) return "";
+  const diff = v - avg, pct = Math.round(diff/avg*100);
+  if(Math.abs(pct) < 5) return `<span class="cmp eq">≈ kaip įprastai</span>`;
+  return `<span class="cmp ${diff>0?"up":"dn"}">${diff>0?"↑":"↓"} ${fmt(Math.abs(diff))}${unit} ${diff>0?"daugiau":"mažiau"} nei vid.</span>`;
+}
+function renderDayX(){
+  const d0 = histDay, d1 = addDays(d0,1), now = Date.now(), isToday = d0===dayStart(now), s = dayStats(d0), L = list();
+  const a = age(d0), N = norms(a.weeks);
+  const prev = [1,2,3,4,5,6,7].map(i=>addDays(d0,-i)).filter(hasData), P = prev.map(dayStats);
+  const A = f => P.length ? avgOf(P.map(f)) : 0;
+  const ml = v => `${Math.round(v)}`, hh = v => dur(v);
+  let h = `<div class="dhead"><button class="iconbtn" data-dayxback="1">‹</button><div><h2 style="margin:0">${dayTitle(d0)}</h2><div class="muted small">${ageText(a)}${isToday?` · iki ${hm(now)}`:""}</div></div></div>`;
+  h += `<div class="daynav" style="margin-top:6px"><button class="iconbtn" data-day="-1">‹</button><div class="t small muted">Palyginimas su ${P.length} ankstesnių dienų vidurkiu</div><button class="iconbtn" data-day="1" ${isToday?"disabled style='opacity:.3'":""}>›</button></div>`;
+
+  /* ---- SLEEP ---- */
+  const sp = sleepSplit(d0), sleeps = L.filter(e=>e.t==="sleep" && inRange(e,d0,d1)>0).sort((x,y)=>x.s-y.s);
+  const naps = sleeps.filter(e=>e.d?.k==="nap" && e.s>=d0);
+  const segAll = sleeps.flatMap(segs).map(([x,y])=>[Math.max(x,d0),Math.min(y,d1)]).filter(([x,y])=>y>x).sort((x,y)=>x[0]-y[0]);
+  const wakes = []; for(let i=1;i<segAll.length;i++){ const g = segAll[i][0]-segAll[i-1][1]; if(g>2*MIN) wakes.push({a:segAll[i-1][1], b:segAll[i][0], g}); }
+  const dayWakes = wakes.filter(w=>{ const hr = new Date(w.a).getHours(); return hr>=6 && hr<21; });
+  const longestSeg = segAll.reduce((m,[x,y])=>Math.max(m,y-x),0);
+  const nt = nightTotal(d0), nlng = nightLongest(d0);
+  h += `<h2 id="sec-sleep">😴 Miegas</h2>`;
+  h += statGrid([
+    ["Iš viso", dur(s.sleepMs), `rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.<br>${cmp(s.sleepMs/HOUR, A(x=>x.sleepMs/HOUR), " val.", f1)}`],
+    ["Dieną (poguliai)", dur(sp.nap), `${naps.length} ${pl(naps.length,["pogulis","poguliai","pogulių"])} · įprasta ${N.naps[0]}–${N.naps[1]}`],
+    ["Naktį (šią parą)", dur(sp.night), "0–24 val. ribose"],
+    ["Ilgiausias be pertraukos", longestSeg?dur(longestSeg):"—", ""],
+    ["Praėjusi naktis", nt?dur(nt):"—", nt?`ilgiausiai be pertraukos ${dur(nlng)}`:""],
+    ["Budrumo langas", dayWakes.length?dur(avgOf(dayWakes.map(w=>w.g))):"—", dayWakes.length?`ilgiausias ${dur(Math.max(...dayWakes.map(w=>w.g)))} · norma ${N.wake[0]}–${N.wake[1]} min.`:""]
+  ]);
+  if(sleeps.length) h += `<div class="card" style="margin-top:8px"><div style="font-weight:700;margin-bottom:4px">Miegai ir budrumas</div>${sleeps.map((e,i)=>{
+      const w = wakes.find(x=>Math.abs(x.b - Math.max(e.s,d0))<MIN);
+      return `${w?`<div class="wrow">☀️ budri ${dur(w.g)} <span class="muted">(${hm(w.a)}–${hm(w.b)})</span>${(w.g/MIN>N.wake[1] && new Date(w.a).getHours()>=6 && new Date(w.a).getHours()<21)?` <span class="cmp up">ilgiau nei norma</span>`:""}</div>`:""}
+        <div class="srow" data-edit="${e.id}"><span class="sdot ${e.d?.k}"></span><b>${hm(e.s)}–${e.e?hm(e.e):"…"}</b> ${e.d?.k==="night"?"naktis":"pogulis"} · ${dur(activeMs(e))}${pauses(e).length?` <span class="muted">(${pauses(e).length} ${pl(pauses(e).length,["pabudimas","pabudimai","pabudimų"])})</span>`:""}</div>`; }).join("")}</div>`;
+
+  /* ---- FEEDS ---- */
+  const F = s.feeds.slice().sort((x,y)=>x.s-y.s), bottles = F.filter(f=>f.d?.m==="bottle"), breasts = F.filter(f=>f.d?.m==="breast");
+  const gaps = []; for(let i=1;i<F.length;i++) gaps.push(F[i].s - F[i-1].s);
+  const bt = breasts.reduce((t,f)=>{ const b = breastTimes(f); t.l+=b.l; t.r+=b.r; t.b+=b.b; return t; },{l:0,r:0,b:0});
+  h += `<h2 id="sec-feed">🍼 Maitinimai</h2>`;
+  h += statGrid([
+    ["Maitinimų", `${F.length}`, `įprasta ${N.feeds[0]}–${N.feeds[1]}<br>${cmp(F.length, A(x=>x.feeds.length), "", f1)}`],
+    ["Buteliuku išgerta", `${s.bottleMl} ml`, `${bottles.length} ${pl(bottles.length,["buteliukas","buteliukai","buteliukų"])}<br>${cmp(s.bottleMl, A(x=>x.bottleMl), " ml", ml)}`],
+    ["Mamos pienas", `${s.bottleMl - s.formulaMl} ml`, s.bottleMl?`${Math.round((s.bottleMl-s.formulaMl)/s.bottleMl*100)} % buteliukų kiekio`:""],
+    ["Mišinys", `${s.formulaMl} ml`, s.bottleMl?`${Math.round(s.formulaMl/s.bottleMl*100)} %`:""],
+    ["Vid. buteliukas", bottles.length?`${Math.round(s.bottleMl/bottles.length)} ml`:"—", ""],
+    ["Krūtimi", breasts.length?dur(s.breastMs):"—", breasts.length?[bt.l?`K ${dur(bt.l)}`:"",bt.r?`D ${dur(bt.r)}`:"",bt.b?`abi ${dur(bt.b)}`:""].filter(Boolean).join(" · "):""],
+    ["Vid. tarpas", gaps.length?dur(avgOf(gaps)):"—", `norma ${String(N.gap[0]).replace(".",",")}–${String(N.gap[1]).replace(".",",")} val.`],
+    ["Ilgiausias tarpas", gaps.length?dur(Math.max(...gaps)):"—", F.length&&isToday?`nuo paskutinio: ${dur(now-F[F.length-1].s)}`:""]
+  ]);
+  if(F.length) h += `<div class="card" style="margin-top:8px"><div style="font-weight:700;margin-bottom:4px">Maitinimų laikai</div>${F.map((f,i)=>`<div class="srow" data-edit="${f.id}"><span class="sdot feed"></span><b>${hm(f.s)}</b> ${f.d.m==="bottle"?`${f.d.ml||"?"} ml · ${milkTxt(f)}`:f.d.m==="breast"?`krūtis ${dur(breastTimes(f).tot)}`:`košė ${esc(f.d.food||"")}`}${i?` <span class="muted">· po ${dur(f.s-F[i-1].s)}</span>`:""}</div>`).join("")}</div>`;
+
+  /* ---- DIAPERS ---- */
+  const D = s.diapers.slice().sort((x,y)=>x.s-y.s);
+  h += `<h2 id="sec-diaper">🧷 Sauskelnės</h2>`;
+  h += statGrid([
+    ["Iš viso", `${D.length}`, cmp(D.length, A(x=>x.diapers.length), "", f1)],
+    ["Šlapios", `${s.wet}`, a.weeks<8?"turėtų būti bent 6":""],
+    ["Purvinos", `${s.dirty}`, D.filter(x=>x.d?.p).map(x=>hm(x.s)).join(", ")],
+    ["Paskutinės", D.length?hm(D[D.length-1].s):"—", D.length?describe(D[D.length-1]).d:""]
+  ]);
+
+  /* ---- PUMP ---- */
+  const Pm = s.pumps.slice().sort((x,y)=>x.s-y.s);
+  h += `<h2 id="sec-pump">🥛 Pieno nutraukimas</h2>`;
+  h += statGrid([
+    ["Nutraukta", `${s.pumpMl} ml`, cmp(s.pumpMl, A(x=>x.pumpMl), " ml", ml)],
+    ["Kartų", `${Pm.length}`, Pm.length?`vid. ${Math.round(s.pumpMl/Pm.length)} ml`:""],
+  ]);
+  if(Pm.length) h += `<div class="card" style="margin-top:8px">${Pm.map(p=>`<div class="srow" data-edit="${p.id}"><span class="sdot pump"></span><b>${hm(p.s)}</b> ${esc(describe(p).d)}</div>`).join("")}</div>`;
+
+  h += `<p class="disc">„Vid.“ – ankstesnių 7 dienų, kuriose yra įrašų, vidurkis.</p>`;
+  $("#pg-home").innerHTML = h;
+  if(dayXSec){ const el = document.getElementById("sec-"+dayXSec); dayXSec = null; if(el) setTimeout(()=>el.scrollIntoView({block:"start"}), 0); }
+}
 function renderHome(){
+  if(dayX) return renderDayX();
   const now = Date.now(), t0 = dayStart(now), d0 = histDay, isToday = d0===t0, d1 = addDays(d0,1), s = dayStats(d0);
   const run = running(), a = age();
   const sleepRun = run.find(e=>e.t==="sleep"), feedRun = run.find(e=>e.t==="feed"), pumpRun = run.find(e=>e.t==="pump");
@@ -683,12 +770,12 @@ function renderHome(){
   const feedSub = [s.bottleMl?`${s.bottleMl} ml${s.formulaMl?` (mišinys ${s.formulaMl})`:""}`:"", s.breastMs?`krūtis ${dur(s.breastMs)}`:""].filter(Boolean).join(" · ");
   h += `<div class="card daycard">
     <div class="daynav"><button class="iconbtn" data-day="-1">‹</button><div class="t">${dayTitle(d0)}<div class="muted small">${isToday?"dienos suvestinė":ageText(age(d0))}</div></div><button class="iconbtn" data-day="1" ${isToday?"disabled style='opacity:.3'":""}>›</button></div>
-    <div class="tiles">
-      <div class="tile feed"><div class="k">🍼 Maitinimai</div><div class="v">${feeds}</div><div class="d">${feedSub||"&nbsp;"}</div></div>
-      <div class="tile sleep"><div class="k">😴 Miegas</div><div class="v">${dur(s.sleepMs)}</div><div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · praėjusi naktis ${dur(nl)}`:""}</div></div>
-      <div class="tile diaper"><div class="k">🧷 Sauskelnės</div><div class="v">${s.diapers.length}</div><div class="d">${s.wet} šlapios · ${s.dirty} purvinos</div></div>
-      <div class="tile pump"><div class="k">🥛 Nutraukta</div><div class="v">${s.pumpMl} ml</div><div class="d">${s.pumps.length} ${pl(s.pumps.length,["kartas","kartai","kartų"])}</div></div>
-    </div></div>`;
+    <div class="tiles" data-dayx="1" style="cursor:pointer">
+      <div class="tile feed" data-sec="feed"><div class="k">🍼 Maitinimai</div><div class="v">${feeds}</div><div class="d">${feedSub||"&nbsp;"}</div></div>
+      <div class="tile sleep" data-sec="sleep"><div class="k">😴 Miegas</div><div class="v">${dur(s.sleepMs)}</div><div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · praėjusi naktis ${dur(nl)}`:""}</div></div>
+      <div class="tile diaper" data-sec="diaper"><div class="k">🧷 Sauskelnės</div><div class="v">${s.diapers.length}</div><div class="d">${s.wet} šlapios · ${s.dirty} purvinos</div></div>
+      <div class="tile pump" data-sec="pump"><div class="k">🥛 Nutraukta</div><div class="v">${s.pumpMl} ml</div><div class="d">${s.pumps.length} ${pl(s.pumps.length,["kartas","kartai","kartų"])}</div></div>
+    </div><div class="more3" data-dayx="1">Išsami dienos statistika ›</div></div>`;
 
   if(isToday){
     const tips = smartTips().slice(0,2);
@@ -1366,6 +1453,8 @@ document.addEventListener("click", ev => {
   if(ev.target.closest("[data-add]")){ addSheet(); return; }
   const nw = ev.target.closest("[data-new]"); if(nw){ const t = nw.dataset.new;
     editSheet({id:uid(), t, s:Date.now(), e:Date.now(), d: t==="weight"?{g:"",h:"",hc:""} : t==="vaccine"?{name:""} : {}}, true); return; }
+  const dx = ev.target.closest("[data-dayx]"); if(dx){ dayX = true; dayXSec = ev.target.closest("[data-sec]")?.dataset.sec || null; render(); if(!dayXSec) scrollTo(0,0); return; }
+  if(ev.target.closest("[data-dayxback]")){ dayX = false; render(); scrollTo(0,0); return; }
   const dt = ev.target.closest("[data-detail]"); if(dt){ detail = dt.dataset.detail; dSel = null; render(); scrollTo(0,0); return; }
   if(ev.target.closest("[data-back]")){ detail = null; render(); scrollTo(0,0); return; }
   const rg = ev.target.closest("[data-range]"); if(rg){ dRange = +rg.dataset.range; render(); return; }
@@ -1408,7 +1497,7 @@ async function installApp(){
 }
 $("#instBtn").onclick = installApp;
 updateInstallBtn();
-function go(p){ if(p==="stats") detail = null; page = p; document.querySelectorAll("main").forEach(m=>m.classList.toggle("hide", m.id!=="pg-"+p));
+function go(p){ if(p==="stats") detail = null; if(p==="home") dayX = false; page = p; document.querySelectorAll("main").forEach(m=>m.classList.toggle("hide", m.id!=="pg-"+p));
   document.querySelectorAll("nav [data-pg]").forEach(b=>b.classList.toggle("on", b.dataset.pg===p));
   if(p==="home") histDay = dayStart(Date.now()); render(); scrollTo(0,0); }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
