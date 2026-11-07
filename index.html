@@ -10,6 +10,8 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png?v=2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Liepa">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -38,6 +40,9 @@ header .who{flex:1;min-width:0}
 header h1{font-family:Fraunces,Georgia,serif;font-weight:650;font-size:27px;margin:0;line-height:1.1;letter-spacing:-.01em}
 header .age{color:var(--muted);font-size:13.5px}
 .iconbtn{border:0;background:var(--card);box-shadow:var(--shadow);width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+.instbtn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;height:36px;padding:0 10px;font-weight:700;font-size:12px;white-space:nowrap;flex:none}
+header .age{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ol.steps{margin:6px 0 0;padding-left:22px}ol.steps li{padding:6px 0}
 .sync{width:10px;height:10px;border-radius:50%;background:var(--muted);opacity:.5;flex:none}
 .sync.ok{background:var(--good);opacity:1}.sync.busy{background:var(--sleep);opacity:1;animation:pulse 1s infinite}.sync.err{background:var(--warn);opacity:1}
 @keyframes pulse{50%{opacity:.3}}
@@ -268,6 +273,7 @@ code.k{font-size:12px;background:var(--soft);padding:2px 6px;border-radius:6px;w
       <div class="age" id="hAge"></div>
     </div>
     <span class="sync" id="syncDot" title="Sinchronizacija"></span>
+    <button class="instbtn hide" id="instBtn">⬇ Atsisiųsti App</button>
     <button class="iconbtn" id="setBtn" aria-label="Nustatymai">⚙︎</button>
   </header>
 
@@ -1069,6 +1075,7 @@ function settingsSheet(){
     <label class="f">Raktas</label><input class="in" id="sKey" value="${esc(cfg.key)}">
     ${cfg.url?`<div class="btns"><button class="btn" id="sShare">🔗 Bendrinti su partneriu</button></div>
       <div class="muted small" style="margin-top:6px">Atsiųskite šią nuorodą antram telefonui – ją atidarius sinchronizacija įsijungs automatiškai.</div>`:""}
+    ${isStandalone()?"":`<div class="btns"><button class="btn pri" id="sInstall">⬇ Atsisiųsti App</button></div>`}
     <div class="btns"><button class="btn" id="sExport">⬇ Atsisiųsti duomenis</button><button class="btn" id="sImport">⬆ Importuoti</button></div>
     <input type="file" id="sFile" accept=".json,application/json" class="hide">
     <div class="btns"><button class="btn" id="sCancel">Uždaryti</button><button class="btn pri" id="sSave">Išsaugoti</button></div>
@@ -1081,6 +1088,7 @@ function settingsSheet(){
     try{ await navigator.clipboard.writeText(url); toast("Nuoroda nukopijuota"); }catch(e){ prompt("Nukopijuokite nuorodą:", url); } };
   $("#sExport").onclick = () => { const blob = new Blob([JSON.stringify(Object.values(entries),null,1)],{type:"application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `liepa-${toInput(Date.now()).slice(0,10)}.json`; a.click(); };
+  if($("#sInstall")) $("#sInstall").onclick = () => { closeSheet(); installApp(); };
   $("#sImport").onclick = () => $("#sFile").click();
   $("#sFile").onchange = async ev => { const f = ev.target.files[0]; if(!f) return;
     try{ const arr = JSON.parse(await f.text()); if(!Array.isArray(arr)) throw 0;
@@ -1151,6 +1159,39 @@ document.addEventListener("click", ev => {
   const n = ev.target.closest("nav [data-pg]"); if(n){ go(n.dataset.pg); return; }
 });
 $("#setBtn").onclick = settingsSheet;
+
+/* ---------- install (Android: native prompt, iPhone: instructions) ---------- */
+let installEvt = null;
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints > 1);
+function updateInstallBtn(){ $("#instBtn").classList.toggle("hide", isStandalone()); }
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; updateInstallBtn(); });
+addEventListener("appinstalled", () => { installEvt = null; updateInstallBtn(); toast("Programėlė įdiegta ✓"); });
+async function installApp(){
+  if(isStandalone()){ toast("Programėlė jau įdiegta"); return; }
+  if(installEvt){ installEvt.prompt(); const r = await installEvt.userChoice.catch(()=>null); installEvt = null; if(r && r.outcome==="accepted") toast("Diegiama…"); return; }
+  const ios = isIOS(), safari = ios && !/crios|fxios|edgios/i.test(navigator.userAgent);
+  openSheet(`<h3>Atsisiųsti Liepą</h3>
+    ${ios ? `<p>iPhone programėlė įdiegiama per naršyklę – ji atsiras pradžios ekrane kaip įprasta programėlė.</p>
+      <ol class="steps">
+        ${safari?"":`<li>Geriausia atidaryti šį puslapį <b>Safari</b> naršyklėje (Chrome irgi tinka, jei iOS 16.4 ar naujesnė).</li>`}
+        <li>Apačioje (Chrome – viršuje) spauskite <b>Bendrinti</b> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11v9h12v-9"/></svg> – kvadratėlį su rodykle aukštyn.</li>
+        <li>Slinkite žemyn ir pasirinkite <b>„Į pradžios ekraną“</b> (Add to Home Screen).</li>
+        <li>Spauskite <b>„Pridėti“</b>.</li>
+      </ol>`
+    : `<p>Android telefone:</p>
+      <ol class="steps">
+        <li>Atidarykite šį puslapį <b>Chrome</b> naršyklėje.</li>
+        <li>Viršuje dešinėje spauskite <b>⋮</b> meniu.</li>
+        <li>Pasirinkite <b>„Įdiegti programą“</b> arba <b>„Pridėti prie pagrindinio ekrano“</b>.</li>
+        <li>Patvirtinkite – Liepa atsiras tarp programėlių.</li>
+      </ol>`}
+    <p class="muted small">Įdiegus duomenys ir sinchronizacija išlieka – nieko iš naujo vesti nereikia.</p>
+    <div class="btns"><button class="btn pri" id="iClose">Supratau</button></div>`);
+  $("#iClose").onclick = closeSheet;
+}
+$("#instBtn").onclick = installApp;
+updateInstallBtn();
 function go(p){ page = p; document.querySelectorAll("main").forEach(m=>m.classList.toggle("hide", m.id!=="pg-"+p));
   document.querySelectorAll("nav [data-pg]").forEach(b=>b.classList.toggle("on", b.dataset.pg===p));
   if(p==="home") histDay = dayStart(Date.now()); render(); scrollTo(0,0); }
