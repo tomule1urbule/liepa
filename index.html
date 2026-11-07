@@ -113,7 +113,7 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 
 /* history list */
 .daynav{display:flex;align-items:center;gap:8px;margin-top:8px}
-.daynav .t{flex:1;text-align:center;font-weight:600;text-transform:capitalize}
+.daynav .t{flex:1;text-align:center;font-weight:600}
 .item{display:flex;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line);cursor:pointer}
 .item:last-child{border-bottom:0}
 .item .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:none}
@@ -249,7 +249,8 @@ function fromInput(v){ return v ? new Date(v).getTime() : null; }
 function dayTitle(ms){
   const t = dayStart(Date.now());
   if(ms===t) return "Šiandien"; if(ms===addDays(t,-1)) return "Vakar";
-  return new Date(ms).toLocaleDateString("lt-LT",{weekday:"long",month:"long",day:"numeric"});
+  const t = new Date(ms).toLocaleDateString("lt-LT",{weekday:"long",month:"long",day:"numeric"});
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 const WD = ["Sk","Pr","An","Tr","Kt","Pn","Št"];
 
@@ -621,7 +622,7 @@ function describe(e){
   if(e.t==="feed"){
     if(d.m==="breast"){ const bt = breastTimes(e);
       return {t:"Maitinimas krūtimi", d:[bt.l?`K ${dur(bt.l)}`:"", bt.r?`D ${dur(bt.r)}`:""].filter(Boolean).join(" · ") || SIDE[d.side]}; }
-    if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":"motinos pienas"}`};
+    if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":d.milk==="mix"?"pienas + mišinys":"motinos pienas"}`};
     return {t:"Papildomas maistas", d:d.food||""};
   }
   if(e.t==="sleep"){ const pz = pauseMs(e), n = pauses(e).length;
@@ -645,7 +646,7 @@ function renderHist(){
   h += items.length ? items.map(e=>{ const x = describe(e);
     return `<div class="item ${e.t}" data-edit="${e.id}"><div class="ic">${ICON[e.t]}</div>
       <div class="m"><div class="tt">${x.t}</div><div class="dd">${esc(x.d)}${e.n?` · ${esc(e.n)}`:""}</div></div>
-      <div class="tm">${hm(e.s)}${e.e&&e.t!=="diaper"?`–${hm(e.e)}`:""}${e.by?`<div>${esc(e.by)}</div>`:""}</div></div>`; }).join("")
+      <div class="tm">${hm(e.s)}${e.e&&e.e-e.s>=MIN?`–${hm(e.e)}`:""}${e.by?`<div>${esc(e.by)}</div>`:""}</div></div>`; }).join("")
     : `<div class="empty">Šią dieną įrašų nėra</div>`;
   h += `</div><div class="btns"><button class="btn pri" data-add="1">＋ Pridėti įrašą</button></div>`;
   $("#pg-hist").innerHTML = h;
@@ -890,7 +891,7 @@ function editSheet(e, isNew){
   }
   if(e.t==="feed" && d.m==="bottle"){
     f += `<label class="f">Kiekis, ml</label><input class="in" id="xMl" type="number" inputmode="numeric" placeholder="pvz. 120" value="${esc(d.ml)}">
-      <label class="f">Kas buteliuke</label><div class="seg" id="xMilk"><button data-v="breast" class="${d.milk!=="formula"?"on":""}">Motinos pienas</button><button data-v="formula" class="${d.milk==="formula"?"on":""}">Mišinys</button></div>`;
+      <label class="f">Kas buteliuke</label><div class="seg" id="xMilk"><button data-v="breast" class="${d.milk!=="formula"&&d.milk!=="mix"?"on":""}">Motinos pienas</button><button data-v="formula" class="${d.milk==="formula"?"on":""}">Mišinys</button><button data-v="mix" class="${d.milk==="mix"?"on":""}">Abu</button></div>`;
   }
   if(e.t==="feed" && d.m==="solid") f += `<label class="f">Ką valgė</label><input class="in" id="xFood" placeholder="pvz. moliūgų tyrelė" value="${esc(d.food)}">`;
   if(e.t==="sleep") f += `<label class="f">Miego tipas</label><div class="seg" id="xK"><button data-v="nap" class="${d.k!=="night"?"on":""}">Pogulis</button><button data-v="night" class="${d.k==="night"?"on":""}">Nakties miegas</button></div>`;
@@ -941,7 +942,8 @@ function settingsSheet(){
     <label class="f">Raktas</label><input class="in" id="sKey" value="${esc(cfg.key)}">
     ${cfg.url?`<div class="btns"><button class="btn" id="sShare">🔗 Bendrinti su partneriu</button></div>
       <div class="muted small" style="margin-top:6px">Atsiųskite šią nuorodą antram telefonui – ją atidarius sinchronizacija įsijungs automatiškai.</div>`:""}
-    <div class="btns"><button class="btn" id="sExport">⬇ Atsisiųsti duomenis</button></div>
+    <div class="btns"><button class="btn" id="sExport">⬇ Atsisiųsti duomenis</button><button class="btn" id="sImport">⬆ Importuoti</button></div>
+    <input type="file" id="sFile" accept=".json,application/json" class="hide">
     <div class="btns"><button class="btn" id="sCancel">Uždaryti</button><button class="btn pri" id="sSave">Išsaugoti</button></div>
     <p class="disc">Liepa v1 · ${Object.keys(entries).length} įrašų šiame telefone</p>`);
   const sheet = $("#sheet");
@@ -952,6 +954,13 @@ function settingsSheet(){
     try{ await navigator.clipboard.writeText(url); toast("Nuoroda nukopijuota"); }catch(e){ prompt("Nukopijuokite nuorodą:", url); } };
   $("#sExport").onclick = () => { const blob = new Blob([JSON.stringify(Object.values(entries),null,1)],{type:"application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `liepa-${toInput(Date.now()).slice(0,10)}.json`; a.click(); };
+  $("#sImport").onclick = () => $("#sFile").click();
+  $("#sFile").onchange = async ev => { const f = ev.target.files[0]; if(!f) return;
+    try{ const arr = JSON.parse(await f.text()); if(!Array.isArray(arr)) throw 0;
+      let n = 0; for(const it of arr){ if(!it || !it.id || !it.t || !it.s) continue; const cur = entries[it.id];
+        if(!cur || (it.u||0) > (cur.u||0)){ entries[it.id] = it; if(!queue.includes(it.id)) queue.push(it.id); n++; } }
+      saveLocal(); closeSheet(); toast(`Importuota ${n} ${pl(n,["įrašas","įrašai","įrašų"])}`); sync();
+    }catch(e){ toast("Nepavyko nuskaityti failo"); } };
   $("#sSave").onclick = () => {
     const name = $("#sName").value.trim() || "Liepa", birth = $("#sBirth").value || DEFAULT_BABY.birth;
     const cur = baby(); if(name!==cur.name || birth!==cur.birth || !entries.cfg) put({id:"cfg", t:"cfg", s:0, e:0, d:{name, birth}});
