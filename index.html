@@ -916,7 +916,7 @@ function sleepSheet(){
       if(z==="stop"){ stopEntry(run); toast(`Miegojo ${dur(activeMs(run))}`); } };
     return;
   }
-  const h = new Date().getHours(); let k = (h>=19||h<6) ? "night" : "nap", ago = 0;
+  const h = new Date().getHours(); let k = (h>=21||h<6) ? "night" : "nap", ago = 0;
   openSheet(`<h3>Miegas</h3>
     <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
     <label class="f">Užmigo</label><div class="seg" id="zAgo"><button data-v="0" class="on">Dabar</button><button data-v="5">−5 min.</button><button data-v="10">−10 min.</button><button data-v="15">−15 min.</button></div>
