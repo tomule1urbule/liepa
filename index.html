@@ -1055,9 +1055,28 @@ setInterval(() => { if(!$("#scrim").classList.contains("show")) render(); }, 60e
 /* =========================================================
    Actions
    ========================================================= */
-function startFeed(side){
+/* time picker used by all quick sheets */
+function tpHtml(label){
+  return `<label class="f">${label}</label>
+    <input class="in" id="tpT" type="time" value="${hm(Date.now())}" style="font-size:22px;font-weight:700;text-align:center">
+    <div class="seg" id="tpAgo" style="margin-top:8px"><button data-v="0" class="on">Dabar</button><button data-v="5">−5</button><button data-v="10">−10</button><button data-v="15">−15</button><button data-v="30">−30</button><button data-v="60">−60</button></div>
+    <div class="muted small" style="margin:6px 0 4px">Įveskite laiką arba bakstelėkite, prieš kiek minučių tai buvo.</div>`;
+}
+function tpWire(){
+  const seg = $("#tpAgo"), t = $("#tpT"); if(!seg) return;
+  seg.addEventListener("click", ev => { const b = ev.target.closest("button"); if(!b) return; ev.stopPropagation();
+    seg.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); t.value = hm(Date.now() - (+b.dataset.v)*MIN); });
+  t.addEventListener("input", () => seg.querySelectorAll("button").forEach(x=>x.classList.remove("on")));
+}
+function tpRead(){
+  const v = $("#tpT")?.value; if(!v) return Date.now();
+  const [hh, mm] = v.split(":").map(Number), d = new Date(); d.setHours(hh, mm, 0, 0); let at = d.getTime();
+  if(at > Date.now() + MIN) at -= DAY;
+  return Math.min(at, Date.now());
+}
+function startFeed(side, at){
   running().filter(e=>e.t==="feed").forEach(stopEntry);
-  const now = Date.now();
+  const now = at || Date.now();
   put({id:uid(), t:"feed", s:now, e:null, d:{m:"breast", first:side, side, l:0, r:0, ss:now}});
   toast(`Maitinimas pradėtas · ${sideTxt(side)}`);
 }
@@ -1110,26 +1129,17 @@ function sleepSheet(){
   const h = new Date().getHours(); let k = (h>=21||h<6) ? "night" : "nap", ago = 0;
   openSheet(`<h3>Miegas</h3>
     <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
-    <label class="f">Užmigo</label>
-    <input class="in" id="zT" type="time" value="${hm(Date.now())}" style="font-size:22px;font-weight:700;text-align:center">
-    <div class="seg" id="zAgo" style="margin-top:8px"><button data-v="0" class="on">Dabar</button><button data-v="5">−5</button><button data-v="10">−10</button><button data-v="15">−15</button><button data-v="30">−30</button></div>
-    <div class="muted small" style="margin-top:6px">Įveskite laiką arba bakstelėkite, prieš kiek minučių užmigo – laikmatis skaičiuos nuo nurodyto laiko.</div>
+    ${tpHtml("Užmigo")}
     <div class="btns"><button class="btn pri" id="zStart">▶ Pradėti laikmatį</button></div>
     <div class="btns"><button class="btn" id="zPast">✎ Įrašyti praėjusį miegą</button></div>`);
   const sh = $("#sheet");
-  sh.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
-    if(b.parentNode.id==="zAgo") $("#zT").value = hm(Date.now() - (+b.dataset.v)*MIN); };
-  $("#zT").oninput = () => sh.querySelectorAll("#zAgo button").forEach(x=>x.classList.remove("on"));
-  $("#zStart").onclick = () => {
-    k = sh.querySelector("#zK .on").dataset.v;
-    const [hh, mm] = ($("#zT").value || hm(Date.now())).split(":").map(Number);
-    const d = new Date(); d.setHours(hh, mm, 0, 0); let at = d.getTime();
-    if(at > Date.now() + MIN) at -= DAY;            // e.g. 23:40 entered after midnight → yesterday
-    closeSheet(); startSleep(Math.min(at, Date.now()), k); };
-  $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; editSheet({id:uid(), t:"sleep", s:Date.now()-60*MIN, e:Date.now(), d:{k}}, true); };
+  sh.onclick = ev => { const b = ev.target.closest("#zK button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); };
+  tpWire();
+  $("#zStart").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; const at = tpRead(); closeSheet(); startSleep(at, k); };
+  $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; const at = tpRead(); editSheet({id:uid(), t:"sleep", s:at, e:Math.min(Date.now(), at+60*MIN), d:{k}}, true); };
 }
-function startPump(){ put({id:uid(), t:"pump", s:Date.now(), e:null, d:{l:"",r:""}}); toast("Nutraukimas pradėtas"); }
-function diaper(w,p){ put({id:uid(), t:"diaper", s:Date.now(), e:Date.now(), d:{w,p}}); toast("Sauskelnės pažymėtos"); }
+function startPump(at){ put({id:uid(), t:"pump", s:at||Date.now(), e:null, d:{l:"",r:""}}); toast("Nutraukimas pradėtas"); }
+function diaper(w,p,at){ at = at || Date.now(); put({id:uid(), t:"diaper", s:at, e:at, d:{w,p}}); toast(`Sauskelnės pažymėtos · ${hm(at)}`); }
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#sheet").innerHTML = `<div class="grab"></div>` + html; $("#scrim").classList.add("show"); }
@@ -1138,35 +1148,38 @@ $("#scrim").addEventListener("click", e => { if(e.target.id==="scrim") closeShee
 
 function feedSheet(){
   const sug = "L";
-  openSheet(`<h3>Maitinimas krūtimi</h3>
-    <div class="big-opts">
+  openSheet(`<h3>Maitinimas krūtimi</h3>${tpHtml("Pradėjo")}
+    <div class="big-opts" style="margin-top:10px">
       <button class="opt" data-f="L">▶ Kairė<span>pradėti laikmatį</span></button>
       <button class="opt" data-f="R">▶ Dešinė<span>pradėti laikmatį</span></button>
       <button class="opt wide" data-f="B">▶ Abi<span>pradėti laikmatį – skaičiuojamas bendras laikas</span></button>
       <button class="opt wide" data-f="past">✎ Įrašyti praėjusį<span>įvesti rankiniu būdu</span></button>
     </div>`);
   $("#sheet").onclick = ev => { const b = ev.target.closest("[data-f]"); if(!b) return; const f = b.dataset.f;
-    if(f==="L"||f==="R"||f==="B"){ closeSheet(); startFeed(f); }
+    if(f==="L"||f==="R"||f==="B"){ const at = tpRead(); closeSheet(); startFeed(f, at); }
     else if(f==="bottle") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"bottle", ml:"", milk:"breast"}}, true);
     else if(f==="solid") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"solid", food:""}}, true);
-    else editSheet({id:uid(), t:"feed", s:Date.now()-20*MIN, e:Date.now(), d:{m:"breast", first:sug||"L", side:sug||"L", l:10*MIN, r:10*MIN}}, true);
+    else { const at = tpRead(); editSheet({id:uid(), t:"feed", s:at, e:Math.min(Date.now(), at+20*MIN), d:{m:"breast", first:sug||"L", side:sug||"L", l:10*MIN, r:10*MIN}}, true); }
   };
+  tpWire();
 }
 function pumpSheet(){
-  openSheet(`<h3>Pieno nutraukimas</h3><div class="big-opts">
+  openSheet(`<h3>Pieno nutraukimas</h3>${tpHtml("Pradėjo")}<div class="big-opts" style="margin-top:10px">
     <button class="opt" data-p="timer">▶ Pradėti laikmatį<span>kiekį įvesite pabaigoje</span></button>
     <button class="opt" data-p="manual">✎ Įrašyti kiekį<span>jau nutraukta</span></button></div>`);
-  $("#sheet").onclick = ev => { const b = ev.target.closest("[data-p]"); if(!b) return;
-    if(b.dataset.p==="timer"){ closeSheet(); startPump(); }
-    else editSheet({id:uid(), t:"pump", s:Date.now()-15*MIN, e:Date.now(), d:{l:"",r:""}}, true);
+  $("#sheet").onclick = ev => { const b = ev.target.closest("[data-p]"); if(!b) return; const at = tpRead();
+    if(b.dataset.p==="timer"){ closeSheet(); startPump(at); }
+    else editSheet({id:uid(), t:"pump", s:at, e:Math.min(Date.now(), at+15*MIN), d:{l:"",r:""}}, true);
   };
+  tpWire();
 }
 function diaperSheet(){
-  openSheet(`<h3>Sauskelnės</h3><div class="big-opts">
+  openSheet(`<h3>Sauskelnės</h3>${tpHtml("Kada keitėte")}<div class="big-opts" style="margin-top:10px">
     <button class="opt" data-d="w">💧 Šlapios</button><button class="opt" data-d="p">💩 Purvinos</button>
     <button class="opt wide" data-d="wp">💧💩 Šlapios ir purvinos</button></div>`);
-  $("#sheet").onclick = ev => { const b = ev.target.closest("[data-d]"); if(!b) return; const v = b.dataset.d;
-    closeSheet(); diaper(v.includes("w"), v.includes("p")); };
+  $("#sheet").onclick = ev => { const b = ev.target.closest("[data-d]"); if(!b) return; const v = b.dataset.d, at = tpRead();
+    closeSheet(); diaper(v.includes("w"), v.includes("p"), at); };
+  tpWire();
 }
 function addSheet(){
   const base = Math.min(Date.now(), histDay + 12*HOUR);
@@ -1221,7 +1234,8 @@ function editSheet(e, isNew){
   if(e.t==="diaper") f += `<label class="chk"><input type="checkbox" id="xW" ${d.w?"checked":""}> 💧 Šlapios</label><label class="chk"><input type="checkbox" id="xP" ${d.p?"checked":""}> 💩 Purvinos</label>`;
 
   const point = ["diaper","bath","weight","vaccine"].includes(e.t) || (e.t==="feed" && d.m!=="breast");
-  f += point ? `<label class="f">Laikas</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">`
+  f += point ? `<label class="f">Laikas</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">
+      ${isNew?`<div class="seg" id="xAgo" style="margin-top:8px"><button data-v="0" class="on">Dabar</button><button data-v="5">−5</button><button data-v="10">−10</button><button data-v="15">−15</button><button data-v="30">−30</button><button data-v="60">−60</button></div>`:""}`
     : `<label class="f">Pradžia</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">
        <label class="f">Pabaiga</label><input class="in" id="xE" type="datetime-local" value="${run?"":toInput(e.e)}" ${run?"disabled":""}>
        ${run?`<div class="muted small" style="margin-top:6px">Laikmatis vis dar veikia.</div>`:""}`;
@@ -1229,6 +1243,7 @@ function editSheet(e, isNew){
   openSheet(`<h3>${title}</h3>${f}<div class="btns">${isNew?"":`<button class="btn del" id="xDel">Ištrinti</button>`}<button class="btn" id="xCancel">Atšaukti</button><button class="btn pri" id="xSave">Išsaugoti</button></div>`);
   const sheet = $("#sheet");
   sheet.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+    if(b.parentNode.id==="xAgo") $("#xS").value = toInput(Date.now() - (+b.dataset.v)*MIN);
     if(b.parentNode.id==="xPMode"){ const m = b.dataset.v==="both"; $("#xPSep").classList.toggle("hide", m); $("#xPBoth").classList.toggle("hide", !m); }
     if(b.parentNode.id==="xMilk"){ const m = b.dataset.v==="mix"; $("#xOne").classList.toggle("hide", m); $("#xTwo").classList.toggle("hide", !m); } };
   const segv = id => sheet.querySelector(`#${id} .on`)?.dataset.v;
