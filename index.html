@@ -130,6 +130,27 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .item.bath .ic{background:color-mix(in srgb,var(--bath) 18%,transparent)}
 .item.weight .ic{background:color-mix(in srgb,var(--growth) 18%,transparent)}
 .item.vaccine .ic{background:color-mix(in srgb,var(--vacc) 20%,transparent)}
+/* stats */
+.card.link{cursor:pointer}
+.ch{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.more2{color:var(--accent);font-weight:700;font-size:13px;white-space:nowrap}
+.bars{display:flex;align-items:flex-end;gap:4px;margin-top:10px;position:relative}
+.bars.dense{gap:1.5px}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;min-width:0}
+.bc .bs{width:100%;max-width:34px;border-radius:6px 6px 2px 2px;overflow:hidden;display:flex;flex-direction:column-reverse;min-height:1px;background:var(--soft)}
+.bars.dense .bs{border-radius:3px 3px 1px 1px}
+.bc .bv{font-size:10.5px;font-weight:600;height:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bc .bl{font-size:10.5px;color:var(--muted);height:18px;line-height:18px;white-space:nowrap}
+.bc.sel .bs{outline:2px solid var(--ink);outline-offset:1px}
+.bars .band{position:absolute;left:0;right:0;border-top:1.5px dashed color-mix(in srgb,var(--muted) 60%,transparent);border-bottom:1.5px dashed color-mix(in srgb,var(--muted) 60%,transparent);background:color-mix(in srgb,var(--muted) 7%,transparent);pointer-events:none}
+.lg{display:inline-flex;align-items:center;gap:5px;margin-right:12px}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.dhead{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.sg .k{font-size:12px;color:var(--muted);font-weight:600}
+.sg .v{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.sg .d{font-size:11.5px;color:var(--muted)}
+.selinfo{margin-top:8px;padding:8px 10px;background:var(--soft);border-radius:10px;font-size:13.5px}
 /* action grid */
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
 .gb{border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);border-radius:18px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:112px}
@@ -776,26 +797,177 @@ function growthHtml(){
     <div class="btns"><button class="btn" data-new="bath">＋ Pažymėti maudynes</button></div></div>`;
   return h;
 }
+/* ---------- stats helpers ---------- */
+const f1 = v => (Math.round(v*10)/10).toFixed(1).replace(".",",");
+const avgOf = arr => arr.length ? arr.reduce((p,c)=>p+c,0)/arr.length : 0;
+function firstDay(){ const L = list(); return L.length ? dayStart(Math.min(...L.map(e=>e.s))) : dayStart(Date.now()); }
+function rangeDays(n){ const t0 = dayStart(Date.now()); if(!n) n = Math.round((t0 - firstDay())/DAY) + 1; n = Math.max(n,1); return Array.from({length:n}, (_,i)=>addDays(t0, i-n+1)); }
+function hasData(d){ const d1 = addDays(d,1); return list().some(e=>e.s>=d && e.s<d1); }
+function sleepSplit(d){ const d1 = addDays(d,1); let night=0, nap=0;
+  for(const e of list()) if(e.t==="sleep"){ const x = inRange(e,d,d1); if(x){ if(e.d?.k==="night") night+=x; else nap+=x; } }
+  return {night, nap}; }
+function dm(d){ return new Date(d).toLocaleDateString("lt-LT",{month:"long",day:"numeric"}); }
+function tod(ms, base){ // minutes since base-day 12:00 (so evening/night sort correctly)
+  let m = (ms - (dayStart(ms) + 12*HOUR)) / MIN; if(m < 0) m += 1440; return m; }
+function fmtTod(min){ // min relative to 12:00
+  let m = Math.round(min + 12*60); m = ((m % 1440) + 1440) % 1440; return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+function trendTxt(vals){ // vals per full day (ascending); compare last 7 vs previous 7
+  const v = vals.filter(x=>x!=null); if(v.length < 10) return "";
+  const a = avgOf(v.slice(-7)), b = avgOf(v.slice(-14,-7)); if(!b) return "";
+  const pct = Math.round((a-b)/b*100);
+  return pct===0 ? "tiek pat, kiek ankstesnę savaitę" : `${pct>0?"↑":"↓"} ${Math.abs(pct)} % palyginti su ankstesne savaite`; }
+
+function bars(days, series, o={}){
+  const n = days.length, tot = days.map((_,i)=>series.reduce((t,s)=>t+(s.vals[i]||0),0));
+  const max = Math.max(...tot, o.band?o.band[1]:0, 0.0001), H = 150;
+  const step = n<=14 ? 1 : Math.ceil(n/7), t0 = dayStart(Date.now());
+  const band = o.band ? `<div class="band" style="bottom:${(o.band[0]/max*H+18).toFixed(0)}px;height:${((o.band[1]-o.band[0])/max*H).toFixed(0)}px"></div>` : "";
+  return `<div class="bars ${n>14?"dense":""}" style="height:${H+40}px">${band}${days.map((d,i)=>{
+    const sel = o.sel===d, lab = n<=7 ? (d===t0?"Šiand.":WD[new Date(d).getDay()]) : (i%step===0 || d===t0) ? new Date(d).toLocaleDateString("lt-LT",{month:"2-digit",day:"2-digit"}) : "";
+    return `<div class="bc ${sel?"sel":""}" data-dday="${d}"><div class="bv">${tot[i] && (n<=14||sel) ? o.fmt(tot[i]) : ""}</div>
+      <div class="bs" style="height:${(tot[i]/max*H).toFixed(1)}px">${series.map(s=>s.vals[i]?`<div style="flex:${s.vals[i]};background:${s.color}"></div>`:"").join("")}</div>
+      <div class="bl">${lab}</div></div>`; }).join("")}</div>
+    ${series.length>1?`<div class="legend">${series.map(s=>`<span class="lg"><i style="background:${s.color}"></i>${s.label}</span>`).join("")}</div>`:""}`;
+}
+function statGrid(items){ return `<div class="sgrid">${items.filter(Boolean).map(([k,v,d])=>`<div class="sg"><div class="k">${k}</div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`).join("")}</div>`; }
+
+/* ---------- stats overview ---------- */
+let detail = null, dRange = 7, dSel = null;
 function renderStats(){
-  const t0 = dayStart(Date.now()), days = [6,5,4,3,2,1,0].map(i=>addDays(t0,-i)), S = days.map(dayStats), a = age(), N = norms(a.weeks);
-  const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightTotal(d)/HOUR).toFixed(1)), longest = days.map(d=>+(nightLongest(d)/HOUR).toFixed(1));
-  const full = S.slice(0,6);
-  const avg = arr => { const x = arr.filter(Boolean); return x.length ? x.reduce((p,c)=>p+c,0)/x.length : 0; };
-  let h = `<h2>Paskutinės 7 dienos</h2>`;
-  h += `<div class="card"><div style="font-weight:700">Miegas per parą</div><div class="muted small">Vidurkis ${avg(full.map(s=>s.sleepMs/HOUR)).toFixed(1).replace(".",",")} val. · rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.</div>
-    ${chart(sleepH, "var(--sleep)", v=>String(v).replace(".",","), N.sleep)}<div class="legend">Brūkšniuota juosta – rekomenduojamas kiekis jos amžiui (${N.label})</div></div>`;
-  h += `<div class="card"><div style="font-weight:700">Nakties miegas</div><div class="muted small">Vidurkis ${avg(night).toFixed(1).replace(".",",")} val.</div>
-    ${chart(night, "color-mix(in srgb,var(--sleep) 60%,var(--accent))", v=>String(v).replace(".",","))}</div>`;
-  h += `<div class="card"><div style="font-weight:700">Ilgiausias nepertraukiamas nakties miegas</div><div class="muted small">Vidurkis ${avg(longest).toFixed(1).replace(".",",")} val. · rekordas per savaitę ${String(Math.max(...longest)).replace(".",",")} val.</div>
-    ${chart(longest, "color-mix(in srgb,var(--sleep) 40%,var(--accent))", v=>String(v).replace(".",","))}</div>`;
-  h += `<div class="card"><div style="font-weight:700">Maitinimai</div><div class="muted small">Vidurkis ${avg(full.map(s=>s.feeds.length)).toFixed(1).replace(".",",")} per parą · įprasta ${N.feeds[0]}–${N.feeds[1]}</div>
-    ${chart(feeds, "var(--feed)", v=>v, N.feeds)}</div>`;
-  if(pump.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Nutrauktas pienas</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.pumpMl)))} ml per dieną</div>
-    ${chart(pump, "var(--pump)", v=>v)}</div>`;
-  const b = S.map(s=>s.bottleMl);
-  if(b.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Išgerta iš buteliuko</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.bottleMl)))} ml per dieną${full.some(s=>s.formulaMl)?`, iš jų mišinys ~${Math.round(avg(full.filter(s=>s.bottleMl).map(s=>s.formulaMl))||0)} ml`:""}</div>
-    ${chart(b, "color-mix(in srgb,var(--feed) 60%,var(--pump))", v=>v)}</div>`;
+  if(detail) return renderDetail();
+  const t0 = dayStart(Date.now()), days = rangeDays(7), S = days.map(dayStats), a = age(), N = norms(a.weeks);
+  const full = days.slice(0,6).filter(hasData), FS = full.map(dayStats);
+  const card = (key, title, sub, ch) => `<div class="card link" data-detail="${key}"><div class="ch"><div><div style="font-weight:700">${title}</div><div class="muted small">${sub}</div></div><span class="more2">Daugiau ›</span></div>${ch}</div>`;
+  let h = `<h2>Paskutinės 7 dienos <small>bakstelėkite kortelę – detaliau</small></h2>`;
+  h += card("sleep","Miegas per parą",`Vidurkis ${f1(avgOf(FS.map(s=>s.sleepMs/HOUR)))} val. · rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.`,
+    bars(days,[{vals:days.map(d=>sleepSplit(d).night/HOUR),color:"var(--sleep)",label:"naktį"},{vals:days.map(d=>sleepSplit(d).nap/HOUR),color:"color-mix(in srgb,var(--sleep) 45%,transparent)",label:"dieną"}],{fmt:f1,band:N.sleep}));
+  const night = days.map(d=>nightTotal(d)/HOUR), longest = days.map(d=>nightLongest(d)/HOUR);
+  h += card("night","Nakties miegas",`Vidurkis ${f1(avgOf(night.filter(Boolean)))} val. · ilgiausias be pertraukos vid. ${f1(avgOf(longest.filter(Boolean)))} val.`,
+    bars(days,[{vals:longest,color:"color-mix(in srgb,var(--sleep) 70%,var(--accent))",label:"ilgiausias be pertraukos"},{vals:night.map((v,i)=>Math.max(0,v-longest[i])),color:"color-mix(in srgb,var(--sleep) 35%,transparent)",label:"likęs nakties miegas"}],{fmt:f1}));
+  h += card("feeds","Maitinimai",`Vidurkis ${f1(avgOf(FS.map(s=>s.feeds.length)))} per parą · įprasta ${N.feeds[0]}–${N.feeds[1]}`,
+    bars(days,[{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="bottle").length),color:"var(--feed)",label:"buteliukas"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="breast").length),color:"color-mix(in srgb,var(--feed) 45%,transparent)",label:"krūtis"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="solid").length),color:"var(--growth)",label:"košė"}].filter(x=>x.vals.some(Boolean)),{fmt:v=>v,band:N.feeds}));
+  if(S.some(s=>s.bottleMl)) h += card("bottle","Išgerta iš buteliuko",`Vidurkis ${Math.round(avgOf(FS.map(s=>s.bottleMl)))} ml per dieną${FS.some(s=>s.formulaMl)?`, iš jų mišinys ~${Math.round(avgOf(FS.map(s=>s.formulaMl)))} ml`:""}`,
+    bars(days,[{vals:S.map(s=>s.bottleMl-s.formulaMl),color:"var(--feed)",label:"mamos pienas"},{vals:S.map(s=>s.formulaMl),color:"color-mix(in srgb,var(--feed) 40%,var(--bath))",label:"mišinys"}],{fmt:v=>Math.round(v)}));
+  if(S.some(s=>s.pumpMl)) h += card("pump","Nutrauktas pienas",`Vidurkis ${Math.round(avgOf(FS.map(s=>s.pumpMl)))} ml per dieną`,
+    bars(days,[{vals:S.map(s=>s.pumpMl),color:"var(--pump)",label:"ml"}],{fmt:v=>Math.round(v)}));
+  h += card("diaper","Sauskelnės",`Vidurkis ${f1(avgOf(FS.map(s=>s.diapers.length)))} per parą`,
+    bars(days,[{vals:S.map(s=>s.wet),color:"var(--diaper)",label:"šlapios"},{vals:S.map(s=>s.dirty),color:"color-mix(in srgb,var(--diaper) 40%,var(--vacc))",label:"purvinos"}],{fmt:v=>v}));
   h += `<p class="disc">Vidurkiai skaičiuojami iš dienų, kuriose yra įrašų (be šiandienos). Kiekvienas kūdikis skirtingas – rekomendacijos yra orientacinės.</p>`;
+  $("#pg-stats").innerHTML = h;
+}
+
+/* ---------- stats detail ---------- */
+const DTITLE = {sleep:"Miegas", night:"Nakties miegas", feeds:"Maitinimai", bottle:"Buteliukas", pump:"Nutrauktas pienas", diaper:"Sauskelnės"};
+function renderDetail(){
+  const days = rangeDays(dRange), t0 = dayStart(Date.now()), a = age(), N = norms(a.weeks), L = list();
+  const full = days.filter(d=>d<t0 && hasData(d));
+  const from = days[0], to = addDays(t0,1);
+  let h = `<div class="dhead"><button class="iconbtn" data-back="1">‹</button><h2 style="margin:0">${DTITLE[detail]}</h2></div>
+    <div class="seg" style="margin-top:10px">${[[7,"7 d."],[14,"14 d."],[30,"30 d."],[0,"Viskas"]].map(([v,l])=>`<button data-range="${v}" class="${dRange===v?"on":""}">${l}</button>`).join("")}</div>`;
+  let chartHtml = "", stats = [], extra = "", selInfo = d => "";
+
+  if(detail==="sleep"){
+    const sp = days.map(sleepSplit), tot = sp.map(x=>(x.night+x.nap)/HOUR);
+    const naps = L.filter(e=>e.t==="sleep" && e.e && e.d?.k==="nap" && e.s>=from && e.s<to);
+    const napDays = full.map(d=>naps.filter(e=>e.s>=d && e.s<addDays(d,1)).length);
+    const fT = full.map(d=>{ const x = sleepSplit(d); return (x.night+x.nap)/HOUR; });
+    // wake windows (day time)
+    const sl = L.filter(e=>e.t==="sleep" && e.e && e.s>=from && e.s<to).sort((x,y)=>x.s-y.s);
+    const ww = []; for(let i=1;i<sl.length;i++){ const g = sl[i].s - sl[i-1].e, hr = new Date(sl[i].s).getHours(); if(g>5*MIN && g<6*HOUR && hr>=7 && hr<21) ww.push(g/MIN); }
+    const longestNap = naps.reduce((m,e)=>activeMs(e)>m.v?{v:activeMs(e),e}:m,{v:0});
+    chartHtml = bars(days,[{vals:sp.map(x=>x.night/HOUR),color:"var(--sleep)",label:"naktį"},{vals:sp.map(x=>x.nap/HOUR),color:"color-mix(in srgb,var(--sleep) 45%,transparent)",label:"dieną"}],{fmt:f1,band:N.sleep,sel:dSel});
+    stats = [["Miegas per parą", `${f1(avgOf(fT))} val.`, `rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.`],
+      ["Dieną (poguliai)", `${f1(avgOf(full.map(d=>sleepSplit(d).nap/HOUR)))} val.`, "vidutiniškai per dieną"],
+      ["Naktį", `${f1(avgOf(full.map(d=>sleepSplit(d).night/HOUR)))} val.`, "kalendorinės paros dalis"],
+      ["Pogulių per dieną", f1(avgOf(napDays)), `įprasta ${N.naps[0]}–${N.naps[1]}`],
+      ["Vid. pogulio trukmė", naps.length?dur(avgOf(naps.map(activeMs))):"—", ""],
+      ["Ilgiausias pogulis", longestNap.e?dur(longestNap.v):"—", longestNap.e?dm(longestNap.e.s):""],
+      ["Budrumo langas", ww.length?dur(avgOf(ww)*MIN):"—", `jos amžiui ${N.wake[0]}–${N.wake[1]} min.`],
+      ["Daugiausia per parą", fT.length?`${f1(Math.max(...fT))} val.`:"—", fT.length?dm(full[fT.indexOf(Math.max(...fT))]):""]];
+    extra = trendTxt(fT);
+    selInfo = d => { const x = sleepSplit(d); return `${dur(x.night+x.nap)} · naktį ${dur(x.night)}, dieną ${dur(x.nap)}`; };
+  }
+  if(detail==="night"){
+    const nt = days.map(d=>nightTotal(d)/HOUR), lg = days.map(d=>nightLongest(d)/HOUR);
+    const fN = full.map(d=>nightTotal(d)).filter(Boolean), fL = full.map(d=>nightLongest(d)).filter(Boolean);
+    const nights = full.map(d=>{ const a0 = addDays(d,-1)+18*HOUR, b0 = d+11*HOUR;
+      const ss = L.filter(e=>e.t==="sleep" && e.e && e.d?.k==="night" && e.s>=a0 && e.s<b0).sort((x,y)=>x.s-y.s);
+      if(!ss.length) return null;
+      const segsN = ss.flatMap(segs).length;
+      return {bed: tod(ss[0].s), wake: tod(ss[ss.length-1].e), wakes: Math.max(0, segsN-1)}; }).filter(Boolean);
+    const rec = full.reduce((m,d)=>{ const v = nightLongest(d); return v>m.v?{v,d}:m; },{v:0});
+    chartHtml = bars(days,[{vals:lg,color:"color-mix(in srgb,var(--sleep) 70%,var(--accent))",label:"ilgiausias be pertraukos"},{vals:nt.map((v,i)=>Math.max(0,v-lg[i])),color:"color-mix(in srgb,var(--sleep) 35%,transparent)",label:"likęs nakties miegas"}],{fmt:f1,sel:dSel});
+    stats = [["Nakties miegas", fN.length?dur(avgOf(fN)):"—", "vidutiniškai"],
+      ["Ilgiausias be pertraukos", fL.length?dur(avgOf(fL)):"—", "vidutiniškai"],
+      ["Rekordas be pertraukos", rec.v?dur(rec.v):"—", rec.v?`naktis prieš ${dm(rec.d)}`:""],
+      ["Prabudimų per naktį", nights.length?f1(avgOf(nights.map(n=>n.wakes))):"—", "vidutiniškai"],
+      ["Užmiega", nights.length?fmtTod(avgOf(nights.map(n=>n.bed))):"—", "vidutinis laikas"],
+      ["Atsibunda", nights.length?fmtTod(avgOf(nights.map(n=>n.wake))):"—", "vidutinis laikas"]];
+    extra = trendTxt(full.map(d=>nightTotal(d)/HOUR));
+    selInfo = d => `naktis prieš ${dm(d)}: ${dur(nightTotal(d))}, ilgiausiai be pertraukos ${dur(nightLongest(d))}`;
+  }
+  if(detail==="feeds"){
+    const S = days.map(dayStats), F = L.filter(e=>e.t==="feed" && e.s>=from && e.s<to).sort((x,y)=>x.s-y.s);
+    const gaps = []; for(let i=1;i<F.length;i++){ const g = F[i].s - F[i-1].s; if(g < 10*HOUR) gaps.push(g); }
+    const nightFeeds = full.map(d=>F.filter(f=>f.s>=addDays(d,-1)+21*HOUR && f.s<d+6*HOUR).length);
+    const fC = full.map(d=>dayStats(d).feeds.length);
+    chartHtml = bars(days,[{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="bottle").length),color:"var(--feed)",label:"buteliukas"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="breast").length),color:"color-mix(in srgb,var(--feed) 45%,transparent)",label:"krūtis"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="solid").length),color:"var(--growth)",label:"košė"}].filter(x=>x.vals.some(Boolean)),{fmt:v=>v,band:N.feeds,sel:dSel});
+    const br = F.filter(f=>f.d?.m==="breast");
+    stats = [["Maitinimų per parą", f1(avgOf(fC)), `įprasta ${N.feeds[0]}–${N.feeds[1]}`],
+      ["Tarpas tarp maitinimų", gaps.length?dur(avgOf(gaps)):"—", `įprasta ${String(N.gap[0]).replace(".",",")}–${String(N.gap[1]).replace(".",",")} val.`],
+      ["Ilgiausias tarpas", gaps.length?dur(Math.max(...gaps)):"—", ""],
+      ["Naktinių maitinimų", f1(avgOf(nightFeeds)), "21:00–6:00, per naktį"],
+      ["Krūtimi", br.length?`${br.length} k.`:"—", br.length?`vid. ${dur(avgOf(br.map(f=>breastTimes(f).tot)))}`:""],
+      ["Buteliuku", `${F.filter(f=>f.d?.m==="bottle").length} k.`, "per laikotarpį"]];
+    extra = trendTxt(fC);
+    selInfo = d => { const s = dayStats(d); return `${s.feeds.length} maitin. · ${s.bottleMl} ml${s.breastMs?` · krūtis ${dur(s.breastMs)}`:""}`; };
+  }
+  if(detail==="bottle"){
+    const S = days.map(dayStats), B = L.filter(e=>e.t==="feed" && e.d?.m==="bottle" && e.s>=from && e.s<to);
+    const fB = full.map(d=>dayStats(d)), tot = fB.map(s=>s.bottleMl), form = fB.map(s=>s.formulaMl);
+    const sumAll = B.reduce((t,f)=>t+(+f.d.ml||0),0), sumF = B.reduce((t,f)=>t+bottleSplit(f).fm,0);
+    chartHtml = bars(days,[{vals:S.map(s=>s.bottleMl-s.formulaMl),color:"var(--feed)",label:"mamos pienas"},{vals:S.map(s=>s.formulaMl),color:"color-mix(in srgb,var(--feed) 40%,var(--bath))",label:"mišinys"}],{fmt:v=>Math.round(v),sel:dSel});
+    stats = [["Per dieną", `${Math.round(avgOf(tot))} ml`, "vidutiniškai"],
+      ["Mamos pieno", `${Math.round(avgOf(tot)-avgOf(form))} ml`, "per dieną"],
+      ["Mišinio", `${Math.round(avgOf(form))} ml`, sumAll?`${Math.round(sumF/sumAll*100)} % viso kiekio`:""],
+      ["Vid. buteliukas", B.length?`${Math.round(sumAll/B.length)} ml`:"—", `${f1(avgOf(fB.map(s=>s.feeds.filter(f=>f.d?.m==="bottle").length)))} buteliukai per dieną`],
+      ["Daugiausia per dieną", tot.length?`${Math.max(...tot)} ml`:"—", tot.length?dm(full[tot.indexOf(Math.max(...tot))]):""],
+      ["Iš viso", `${(sumAll/1000).toFixed(1).replace(".",",")} l`, "per laikotarpį"]];
+    extra = trendTxt(tot);
+    selInfo = d => { const s = dayStats(d); return `${s.bottleMl} ml · mamos pienas ${s.bottleMl-s.formulaMl}, mišinys ${s.formulaMl}`; };
+  }
+  if(detail==="pump"){
+    const S = days.map(dayStats), P = L.filter(e=>e.t==="pump" && e.s>=from && e.s<to), fP = full.map(d=>dayStats(d).pumpMl);
+    const slot = h => h>=5&&h<11 ? 0 : h>=11&&h<17 ? 1 : h>=17&&h<23 ? 2 : 3, names = ["Rytas (5–11)","Diena (11–17)","Vakaras (17–23)","Naktis (23–5)"];
+    const bySlot = [0,1,2,3].map(i=>P.filter(p=>slot(new Date(p.s).getHours())===i).map(pumpMl));
+    chartHtml = bars(days,[{vals:S.map(s=>s.pumpMl),color:"var(--pump)",label:"ml"}],{fmt:v=>Math.round(v),sel:dSel});
+    const sum = P.reduce((t,p)=>t+pumpMl(p),0);
+    stats = [["Per dieną", `${Math.round(avgOf(fP))} ml`, "vidutiniškai"],
+      ["Vid. nutraukimas", P.length?`${Math.round(sum/P.length)} ml`:"—", `${f1(avgOf(full.map(d=>dayStats(d).pumps.length)))} k. per dieną`],
+      ["Geriausia diena", fP.length?`${Math.max(...fP)} ml`:"—", fP.length?dm(full[fP.indexOf(Math.max(...fP))]):""],
+      ["Iš viso", `${(sum/1000).toFixed(1).replace(".",",")} l`, "per laikotarpį"]];
+    extra = trendTxt(fP);
+    h += ""; // slot table below
+    selInfo = d => { const s = dayStats(d); return `${s.pumpMl} ml · ${s.pumps.length} k.`; };
+    var slotHtml = `<h2>Pagal paros laiką</h2><div class="card"><table class="g">${names.map((n,i)=>`<tr><td>${n}</td><td>${bySlot[i].length?`${Math.round(avgOf(bySlot[i]))} ml · ${bySlot[i].length} k.`:"—"}</td></tr>`).join("")}</table><div class="muted small" style="margin-top:6px">Vidutinis kiekis per vieną nutraukimą</div></div>`;
+  }
+  if(detail==="diaper"){
+    const S = days.map(dayStats), fS = full.map(d=>dayStats(d));
+    const lastDirty = lastOf("diaper", e=>e.d?.p);
+    chartHtml = bars(days,[{vals:S.map(s=>s.wet),color:"var(--diaper)",label:"šlapios"},{vals:S.map(s=>s.dirty),color:"color-mix(in srgb,var(--diaper) 40%,var(--vacc))",label:"purvinos"}],{fmt:v=>v,sel:dSel});
+    stats = [["Per parą", f1(avgOf(fS.map(s=>s.diapers.length))), "vidutiniškai"],
+      ["Šlapių", f1(avgOf(fS.map(s=>s.wet))), "per parą"],
+      ["Purvinų", f1(avgOf(fS.map(s=>s.dirty))), "per parą"],
+      ["Paskutinės purvinos", lastDirty?daysAgo(lastDirty.s):"—", lastDirty?`${dm(lastDirty.s)} ${hm(lastDirty.s)}`:""]];
+    extra = trendTxt(fS.map(s=>s.diapers.length));
+    selInfo = d => { const s = dayStats(d); return `${s.diapers.length} · ${s.wet} šlapios, ${s.dirty} purvinos`; };
+  }
+  h += `<div class="card" style="margin-top:10px"><div class="muted small">${dm(days[0])} – ${dm(t0)} · ${full.length} ${pl(full.length,["pilna diena","pilnos dienos","pilnų dienų"])} su įrašais</div>${chartHtml}
+    ${dSel!=null && dSel>=days[0] ? `<div class="selinfo"><b>${dayTitle(dSel)}</b>: ${selInfo(dSel)} <button class="link" data-openday="${dSel}">Atidaryti dieną ›</button></div>` : `<div class="muted small" style="margin-top:6px">Bakstelėkite stulpelį – pamatysite tos dienos duomenis</div>`}</div>`;
+  if(extra) h += `<div class="card small" style="margin-top:10px">📈 ${detail==="diaper"||detail==="feeds"?"Kiekis":"Vidurkis"} paskutinę savaitę: <b>${extra}</b></div>`;
+  h += `<h2>Vidurkiai ir rekordai</h2>${statGrid(stats)}`;
+  if(typeof slotHtml!=="undefined" && detail==="pump") h += slotHtml;
+  h += `<p class="disc">Vidurkiai skaičiuojami iš pasirinkto laikotarpio dienų, kuriose yra įrašų (be šiandienos).</p>`;
   $("#pg-stats").innerHTML = h;
 }
 
@@ -1161,6 +1333,11 @@ document.addEventListener("click", ev => {
   if(ev.target.closest("[data-add]")){ addSheet(); return; }
   const nw = ev.target.closest("[data-new]"); if(nw){ const t = nw.dataset.new;
     editSheet({id:uid(), t, s:Date.now(), e:Date.now(), d: t==="weight"?{g:"",h:"",hc:""} : t==="vaccine"?{name:""} : {}}, true); return; }
+  const dt = ev.target.closest("[data-detail]"); if(dt){ detail = dt.dataset.detail; dSel = null; render(); scrollTo(0,0); return; }
+  if(ev.target.closest("[data-back]")){ detail = null; render(); scrollTo(0,0); return; }
+  const rg = ev.target.closest("[data-range]"); if(rg){ dRange = +rg.dataset.range; render(); return; }
+  const od = ev.target.closest("[data-openday]"); if(od){ const d = +od.dataset.openday; go("home"); histDay = d; render(); scrollTo(0,0); return; }
+  const bd = ev.target.closest("[data-dday]"); if(bd){ const d = +bd.dataset.dday; if(detail){ dSel = dSel===d ? null : d; render(); } else { detail = ev.target.closest("[data-detail]")?.dataset.detail; } return; }
   const g = ev.target.closest("[data-goto]"); if(g){ go(g.dataset.goto); return; }
   const n = ev.target.closest("nav [data-pg]"); if(n){ go(n.dataset.pg); return; }
 });
@@ -1198,7 +1375,7 @@ async function installApp(){
 }
 $("#instBtn").onclick = installApp;
 updateInstallBtn();
-function go(p){ page = p; document.querySelectorAll("main").forEach(m=>m.classList.toggle("hide", m.id!=="pg-"+p));
+function go(p){ if(p==="stats") detail = null; page = p; document.querySelectorAll("main").forEach(m=>m.classList.toggle("hide", m.id!=="pg-"+p));
   document.querySelectorAll("nav [data-pg]").forEach(b=>b.classList.toggle("on", b.dataset.pg===p));
   if(p==="home") histDay = dayStart(Date.now()); render(); scrollTo(0,0); }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
