@@ -125,6 +125,47 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .item.bath .ic{background:color-mix(in srgb,var(--bath) 18%,transparent)}
 .item.weight .ic{background:color-mix(in srgb,var(--growth) 18%,transparent)}
 .item.vaccine .ic{background:color-mix(in srgb,var(--vacc) 20%,transparent)}
+/* action grid */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.gb{border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);border-radius:18px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:112px}
+.gb .c{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:27px;margin-bottom:3px}
+.gb .l{font-weight:700;font-size:13.5px}
+.gb .s{font-size:12px;color:var(--muted);text-align:center;line-height:1.25}
+.gb.bottle .c,.gb.breast .c,.gb.solid .c{background:color-mix(in srgb,var(--feed) 22%,transparent)}
+.gb.sleep .c{background:color-mix(in srgb,var(--sleep) 22%,transparent)}
+.gb.pump .c{background:color-mix(in srgb,var(--pump) 22%,transparent)}
+.gb.diaper .c{background:color-mix(in srgb,var(--diaper) 22%,transparent)}
+.gb.bath .c{background:color-mix(in srgb,var(--bath) 22%,transparent)}
+.gb.live{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.gb.live .s{color:var(--accent);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+/* day summary */
+.daycard{margin-top:14px;padding:10px 12px 14px}
+.daycard .daynav{margin-top:0}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tile{border-radius:14px;padding:10px 12px}
+.tile.feed{background:color-mix(in srgb,var(--feed) 12%,transparent)}
+.tile.sleep{background:color-mix(in srgb,var(--sleep) 12%,transparent)}
+.tile.diaper{background:color-mix(in srgb,var(--diaper) 12%,transparent)}
+.tile.pump{background:color-mix(in srgb,var(--pump) 12%,transparent)}
+.tile .k{font-size:12.5px;font-weight:600;color:var(--muted)}
+.tile .v{font-size:21px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12px;color:var(--muted);line-height:1.3}
+/* vertical timeline */
+.tl{position:relative;padding-left:0}
+.tli{display:grid;grid-template-columns:62px 22px 1fr;align-items:start;cursor:pointer;position:relative}
+.tli:before{content:"";position:absolute;left:72px;top:0;bottom:0;width:2px;background:var(--line)}
+.tli:first-child:before{top:16px}.tli:last-child:before{bottom:calc(100% - 16px)}
+.tli .tt{text-align:right;padding:9px 0 9px;font-variant-numeric:tabular-nums;line-height:1.2}
+.tli .tt b{display:block;font-size:15px}
+.tli .tt span{font-size:11.5px;color:var(--muted)}
+.tli .dot2{width:12px;height:12px;border-radius:50%;margin:12px auto 0;position:relative;z-index:1;border:2px solid var(--bg)}
+.tli.feed .dot2{background:var(--feed)}.tli.sleep .dot2{background:var(--sleep)}.tli.pump .dot2{background:var(--pump)}.tli.diaper .dot2{background:var(--diaper)}
+.tli.bath .dot2{background:var(--bath)}.tli.weight .dot2{background:var(--growth)}.tli.vaccine .dot2{background:var(--vacc)}
+.tli .tc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin:3px 0 5px 4px;box-shadow:var(--shadow)}
+.tli.sleep .tc{background:color-mix(in srgb,var(--sleep) 9%,var(--card))}
+.tli .ti2{font-weight:650}
+.tli .td{font-size:13px;color:var(--muted)}
+.tli .tb{font-size:11px;color:var(--muted);margin-top:1px}
 .acts{padding:4px 14px 12px;margin-top:10px}
 .act{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .act .ic{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:21px;flex:none}
@@ -575,54 +616,62 @@ function runCard(e){
     <div class="row"><button class="stop" data-act="stop">■ ${e.t==="sleep"&&!P?"Pabudo":"Baigti"}</button>${pbtn}<button data-act="edit">Taisyti</button></div>
   </div>`;
 }
-function lastAgo(e, now){ return e ? `prieš ${dur(now - (e.e && e.t!=="feed" && e.t!=="pump" ? e.e : e.s))}` : "dar nėra"; }
-function actRow(k, ic, title, sub, stat, statSub, btn, live){
-  sub = sub.replace(" · ", "<br>");
-  return `<div class="act ${k}" data-act-row="${k}"><div class="ic">${ic}</div>
-    <div class="m"><div class="tt">${title}</div><div class="dd">${sub}</div></div>
-    <div class="st"><b>${stat}</b><span>${statSub||"&nbsp;"}</span></div>
-    <button class="plus ${live?"live":""}" aria-label="${title}">${btn}</button></div>`;
+function sinceTxt(e, now){ if(!e) return "dar nėra"; const t = (e.t==="sleep" && e.e) ? e.e : e.s; return `prieš ${dur(now - t)}`; }
+function gridBtn(k, ic, label, sub, live, liveStart){
+  return `<button class="gb ${k} ${live?"live":""}" data-act-row="${k}"><span class="c">${ic}</span><span class="l">${label}</span>
+    <span class="s">${live ? `<span class="tick2" data-s="${liveStart}">${clock(Date.now()-liveStart)}</span>` : sub}</span></button>`;
 }
 function renderHome(){
   const now = Date.now(), t0 = dayStart(now), d0 = histDay, isToday = d0===t0, d1 = addDays(d0,1), s = dayStats(d0);
   const run = running(), a = age();
   const sleepRun = run.find(e=>e.t==="sleep"), feedRun = run.find(e=>e.t==="feed"), pumpRun = run.find(e=>e.t==="pump");
-  let h = `<div class="daynav"><button class="iconbtn" data-day="-1">‹</button><div class="t">${dayTitle(d0)}${isToday?"":`<div class="muted small">${ageText(age(d0))}</div>`}</div><button class="iconbtn" data-day="1" ${isToday?"disabled style='opacity:.3'":""}>›</button></div>`;
-  if(isToday) h += run.map(runCard).join("");
-
-  const bottles = s.feeds.filter(f=>f.d?.m==="bottle"), breasts = s.feeds.filter(f=>f.d?.m==="breast"), solids = s.feeds.filter(f=>f.d?.m==="solid");
-  const lBottle = lastOf("feed", e=>e.d?.m==="bottle"), lBreast = lastOf("feed", e=>e.d?.m==="breast"), lSleep = lastOf("sleep", e=>e.e), lPump = lastOf("pump"), lDiaper = lastOf("diaper"), lBath = lastOf("bath"), lSolid = lastOf("feed", e=>e.d?.m==="solid");
-  const bSub = lBottle ? `${lastAgo(lBottle,now)} · ${lBottle.d.ml||"?"} ml${lBottle.d.milk==="formula"?" mišinys":lBottle.d.milk==="mix"?" (su mišiniu)":""}` : "dar nėra";
-  const sleepNow = sleepRun && !paused(sleepRun);
-  const sSub = sleepRun ? (sleepNow ? `miega jau <span class="ago" data-t="${sleepRun.s}">${dur(now-sleepRun.s)}</span>` : `⏸ prabudo ${hm(sleepRun.d.p)}`)
-    : lSleep ? `budri jau <span class="ago" data-t="${lSleep.e}">${dur(now-lSleep.e)}</span>` : "dar nėra";
-  const nl = nightLongest(d0);
-  h += `<div class="card acts">`;
-  h += actRow("bottle","🍼","Buteliukas", bSub, `${s.bottleMl} ml`, `${bottles.length} k.${s.formulaMl?` · mišinys ${s.formulaMl}`:""}`, "＋");
-  h += actRow("breast","🤱","Krūtis", feedRun ? `vyksta · ${SIDE[feedRun.d.side]}` : lBreast ? `${lastAgo(lBreast,now)} · ${dur(breastTimes(lBreast).tot)}` : "dar nėra", breasts.length?dur(s.breastMs):"—", breasts.length?`${breasts.length} k.`:"", feedRun?"■":"▶", !!feedRun);
-  h += actRow("sleep","😴","Miegas", sSub, `${hhmm(s.sleepMs)} val.`, `${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · naktį ilg. ${hhmm(nl)}`:""}`, sleepRun?(sleepNow?"■":"▶"):"▶", !!sleepRun);
-  h += actRow("pump","🥛","Nutraukimas", pumpRun ? "vyksta" : lPump ? `${lastAgo(lPump,now)} · ${pumpMl(lPump)} ml` : "dar nėra", `${s.pumpMl} ml`, `${s.pumps.length} k.`, pumpRun?"■":"＋", !!pumpRun);
-  h += actRow("diaper","🧷","Sauskelnės", lDiaper ? `${lastAgo(lDiaper,now)} · ${describe(lDiaper).d}` : "dar nėra", `${s.diapers.length}`, `${s.wet} šl. · ${s.dirty} purv.`, "＋");
-  const baths = list().filter(e=>e.t==="bath" && e.s>=d0 && e.s<d1).length;
-  h += actRow("bath","🛁","Maudynės", lBath ? `${daysAgo(lBath.s)}` : "dar nėra", baths?`${baths}`:"—", "", "＋");
-  if(a.weeks>=17 || lSolid) h += actRow("solid","🥣","Papildomas maistas", lSolid ? `${lastAgo(lSolid,now)} · ${esc(lSolid.d.food||"")}` : "dar nėra", solids.length?`${solids.length}`:"—", "", "＋");
-  h += `${dayBar(d0)}</div>`;
-
-  // tips (today only, compact)
+  let h = "";
   if(isToday){
-    const tips = smartTips().slice(0,3);
+    h += run.map(runCard).join("");
+    const lBottle = lastOf("feed", e=>e.d?.m==="bottle"), lBreast = lastOf("feed", e=>e.d?.m==="breast"), lSleep = lastOf("sleep", e=>e.e),
+      lPump = lastOf("pump"), lDiaper = lastOf("diaper"), lBath = lastOf("bath"), lSolid = lastOf("feed", e=>e.d?.m==="solid");
+    const sleepNow = sleepRun && !paused(sleepRun);
+    h += `<div class="grid3">
+      ${gridBtn("bottle","🍼","Buteliukas", sinceTxt(lBottle,now))}
+      ${gridBtn("breast","🤱","Krūtis", sinceTxt(lBreast,now), !!feedRun, feedRun?.s)}
+      ${gridBtn("sleep","😴", sleepNow?"Miega":sleepRun?"Miegas ⏸":"Miegas", sleepRun ? `prabudo ${hm(sleepRun.d.p)}` : lSleep ? `budri ${dur(now-lSleep.e)}` : "dar nėra", sleepNow, sleepRun?.s)}
+      ${gridBtn("pump","🥛","Nutraukimas", sinceTxt(lPump,now), !!pumpRun, pumpRun?.s)}
+      ${gridBtn("diaper","🧷","Sauskelnės", sinceTxt(lDiaper,now))}
+      ${gridBtn("bath","🛁","Maudynės", lBath ? daysAgo(lBath.s) : "dar nėra")}
+      ${a.weeks>=17 || lSolid ? gridBtn("solid","🥣","Košė", sinceTxt(lSolid,now)) : ""}
+    </div>`;
+  }
+
+  // day summary with day switcher
+  const feeds = s.feeds.length, nl = nightLongest(d0);
+  const feedSub = [s.bottleMl?`${s.bottleMl} ml${s.formulaMl?` (mišinys ${s.formulaMl})`:""}`:"", s.breastMs?`krūtis ${dur(s.breastMs)}`:""].filter(Boolean).join(" · ");
+  h += `<div class="card daycard">
+    <div class="daynav"><button class="iconbtn" data-day="-1">‹</button><div class="t">${dayTitle(d0)}<div class="muted small">${isToday?"dienos suvestinė":ageText(age(d0))}</div></div><button class="iconbtn" data-day="1" ${isToday?"disabled style='opacity:.3'":""}>›</button></div>
+    <div class="tiles">
+      <div class="tile feed"><div class="k">🍼 Maitinimai</div><div class="v">${feeds}</div><div class="d">${feedSub||"&nbsp;"}</div></div>
+      <div class="tile sleep"><div class="k">😴 Miegas</div><div class="v">${dur(s.sleepMs)}</div><div class="d">${s.naps} ${pl(s.naps,["pogulis","poguliai","pogulių"])}${nl?` · naktį ilgiausiai ${dur(nl)}`:""}</div></div>
+      <div class="tile diaper"><div class="k">🧷 Sauskelnės</div><div class="v">${s.diapers.length}</div><div class="d">${s.wet} šlapios · ${s.dirty} purvinos</div></div>
+      <div class="tile pump"><div class="k">🥛 Nutraukta</div><div class="v">${s.pumpMl} ml</div><div class="d">${s.pumps.length} ${pl(s.pumps.length,["kartas","kartai","kartų"])}</div></div>
+    </div></div>`;
+
+  if(isToday){
+    const tips = smartTips().slice(0,2);
     if(tips.length) h += `<div style="margin-top:10px">${tips.map(t=>`<div class="card tip ${t.c||""}"><div class="ti">${t.i}</div><p>${dots(t.x)}</p></div>`).join("")}</div>`;
   }
 
-  // day log
+  // vertical timeline
   const items = list().filter(e => (e.s>=d0 && e.s<d1) || (e.t==="sleep" && inRange(e,d0,d1)>0)).sort((x,y)=>y.s-x.s);
-  h += `<h2>${isToday?"Šiandienos įrašai":"Dienos įrašai"} <small>${items.length}</small></h2><div class="card">`;
-  h += items.length ? items.map(e=>{ const x = describe(e);
-    return `<div class="item ${e.t}" data-edit="${e.id}"><div class="ic">${ICON[e.t]}</div>
-      <div class="m"><div class="tt">${x.t}</div><div class="dd">${esc(x.d)}${e.n?` · ${esc(e.n)}`:""}</div></div>
-      <div class="tm">${hm(e.s)}${e.e&&e.e-e.s>=MIN?`–${hm(e.e)}`:e.e==null?"–…":""}${e.by?`<div>${esc(e.by)}</div>`:""}</div></div>`; }).join("")
-    : `<div class="empty">Šią dieną įrašų nėra</div>`;
-  h += `</div><div class="btns"><button class="btn" data-add="1">＋ Pridėti praėjusį įrašą</button></div>`;
+  h += `<h2>Dienos eiga <small>${items.length} ${pl(items.length,["įrašas","įrašai","įrašų"])}</small></h2>`;
+  if(items.length){
+    h += `<div class="tl">` + items.map(e=>{ const x = describe(e), run = e.e==null, span = e.e && e.e-e.s>=MIN;
+      const when = e.s < d0 ? `${hm(e.s)} <span class="muted">(vakar)</span>` : hm(e.s);
+      return `<div class="tli ${e.t}" data-edit="${e.id}">
+        <div class="tt"><b>${when}</b>${span?`<span>iki ${hm(e.e)}</span>`:run?`<span>vyksta</span>`:""}</div>
+        <div class="dot2"></div>
+        <div class="tc"><div class="ti2">${ICON[e.t]} ${x.t}</div>${x.d||e.n?`<div class="td">${esc(x.d)}${e.n?` · ${esc(e.n)}`:""}</div>`:""}${e.by?`<div class="tb">${esc(e.by)}</div>`:""}</div>
+      </div>`; }).join("") + `</div>`;
+  } else h += `<div class="card empty">Šią dieną įrašų nėra</div>`;
+  h += `<div class="btns"><button class="btn" data-add="1">＋ Pridėti praėjusį įrašą</button></div>`;
 
   if(isToday){
     const wk = WEEKS.filter(w=>a.weeks>=w.a && a.weeks<w.b)[0], m = MONTHS[Math.min(a.months, MONTHS.length-1)];
@@ -805,6 +854,7 @@ function render(){
 function tick(){
   const now = Date.now();
   document.querySelectorAll(".tick").forEach(el => { const e = entries[el.dataset.id]; if(e) el.textContent = clock(activeMs(e)); });
+  document.querySelectorAll(".tick2").forEach(el => el.textContent = clock(now - +el.dataset.s));
   document.querySelectorAll(".ptick").forEach(el => el.textContent = clock(now - +el.dataset.p));
   document.querySelectorAll(".ago").forEach(el => el.textContent = dur(now - +el.dataset.t));
   document.querySelectorAll(".run.feed").forEach(c => { const e = entries[c.dataset.id]; if(!e) return; const bt = breastTimes(e);
