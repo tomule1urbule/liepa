@@ -17,14 +17,14 @@
 :root{
   --bg:#f6f1ea; --card:#fffdf9; --ink:#2a2622; --muted:#7c7268; --line:#e9e0d4; --soft:#f0e9df;
   --accent:#4f7a5a; --accent-ink:#fff;
-  --feed:#d4834f; --sleep:#6476c0; --pump:#c0618a; --diaper:#3f9b97;
+  --feed:#d4834f; --sleep:#6476c0; --pump:#c0618a; --diaper:#3f9b97; --bath:#3d8fc4; --growth:#8a6fb8; --vacc:#b0884a;
   --warn:#b8662a; --good:#3f8752;
   --shadow:0 1px 2px rgba(60,40,20,.06),0 4px 14px rgba(60,40,20,.05);
 }
 [data-theme="dark"]{
   --bg:#111315; --card:#1b1e21; --ink:#ece7e1; --muted:#9a938a; --line:#2a2e32; --soft:#22262a;
   --accent:#8fbf98; --accent-ink:#10140f;
-  --feed:#eaa173; --sleep:#97a6ea; --pump:#e597b8; --diaper:#76c8c3;
+  --feed:#eaa173; --sleep:#97a6ea; --pump:#e597b8; --diaper:#76c8c3; --bath:#7dbbe6; --growth:#b9a2e3; --vacc:#d9b37a;
   --warn:#e8a06a; --good:#8fcf9c;
   --shadow:none;
 }
@@ -108,6 +108,7 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .daybar .mk{position:absolute;width:3px;border-radius:2px}
 .daybar .mk.feed{top:4px;bottom:4px;background:var(--feed)}
 .daybar .mk.pump{top:10px;bottom:10px;background:var(--pump)}
+.daybar .mk.bath{top:3px;height:6px;width:6px;border-radius:50%;background:var(--bath)}
 .daybar .mk.diaper{bottom:3px;height:6px;width:6px;border-radius:50%;background:var(--diaper)}
 .hours{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px;padding:0 1px}
 
@@ -121,6 +122,12 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .item.sleep .ic{background:color-mix(in srgb,var(--sleep) 18%,transparent)}
 .item.pump .ic{background:color-mix(in srgb,var(--pump) 18%,transparent)}
 .item.diaper .ic{background:color-mix(in srgb,var(--diaper) 18%,transparent)}
+.item.bath .ic{background:color-mix(in srgb,var(--bath) 18%,transparent)}
+.item.weight .ic{background:color-mix(in srgb,var(--growth) 18%,transparent)}
+.item.vaccine .ic{background:color-mix(in srgb,var(--vacc) 20%,transparent)}
+.more{display:flex;gap:8px;margin-top:8px}
+.more button{flex:1;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);border-radius:14px;padding:9px 4px;font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+svg.wline{width:100%;height:150px;display:block;margin-top:8px}
 .item .m{flex:1;min-width:0}
 .item .tt{font-weight:600}
 .item .dd{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -238,6 +245,7 @@ function pl(n, f){ n = Math.abs(Math.round(n)); const a=n%10, b=n%100;
 const dots = x => String(x).replace(/\.(<\/b>)?\./g, ".$1");
 function hm(ms){ return new Date(ms).toLocaleTimeString("lt-LT",{hour:"2-digit",minute:"2-digit"}); }
 function dur(ms, short){ ms = Math.max(0, ms); const m = Math.round(ms/MIN); const h = Math.floor(m/60), mm = m%60;
+  if(h >= 24){ const dd = Math.floor(h/24), hh = h%24; return hh ? `${dd} d. ${hh} val.` : `${dd} d.`; }
   if(h && mm) return `${h} val. ${mm} min.`; if(h) return `${h} val.`; return `${mm} min.`; }
 function hhmm(ms){ ms=Math.max(0,ms); const m=Math.round(ms/MIN); return `${Math.floor(m/60)}:${pad(m%60)}`; }
 function clock(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
@@ -478,7 +486,7 @@ function smartTips(){
   const lf = lastOf("feed");
   if(!feeding && lf){
     const gap = now - lf.s;
-    if(!sleeping && gap > N.gap[1]*HOUR) tips.push({c:"warn", i:"🍼", x:`Nuo paskutinio maitinimo pradžios praėjo <b>${dur(gap)}</b> – ji tikriausiai jau išalkusi.`});
+    if(!sleeping && gap > N.gap[1]*HOUR && gap < 12*HOUR) tips.push({c:"warn", i:"🍼", x:`Nuo paskutinio maitinimo pradžios praėjo <b>${dur(gap)}</b> – ji tikriausiai jau išalkusi.`});
   }
   const sug = suggestSide();
   if(sug && !feeding) tips.push({i:"🤱", x:`Kitą maitinimą siūloma pradėti nuo <b>${SIDE_GEN[sug]}</b> krūties.`});
@@ -563,7 +571,8 @@ function renderHome(){
     <button class="q sleep ${sleepRun?"active":""}" data-q="sleep"><span class="ic">${sleeping?"☀️":"😴"}</span>${sleeping?"Pabudo":sleepRun?"Miegas ⏸":"Miegas"}</button>
     <button class="q pump" data-q="pump"><span class="ic">🥛</span>Nutraukimas</button>
     <button class="q diaper" data-q="diaper"><span class="ic">🧷</span>Sauskelnės</button>
-  </div>`;
+  </div>
+  <div class="more"><button data-new="bath">🛁 Maudynės</button><button data-new="weight">⚖️ Svoris</button><button data-new="vaccine">💉 Skiepas</button></div>`;
 
   // since cards
   const feedDesc = lf ? (lf.d?.m==="breast" ? `${hm(lf.s)} · ${lf.d.l&&lf.d.r?"abi krūtys":SIDE[lf.d.side]+" krūtis"}` : lf.d?.m==="bottle" ? `${hm(lf.s)} · buteliukas ${lf.d.ml||"?"} ml` : `${hm(lf.s)} · papildomas maistas`) : "";
@@ -575,6 +584,8 @@ function renderHome(){
       <div class="v">${sleeping ? `<span class="ago" data-t="${sleeping.s}">${dur(now-sleeping.s)}</span>` : ls ? `<span class="ago" data-t="${ls.e}">${dur(now-ls.e)}</span>` : "—"}</div>
       <div class="d">${sleeping ? `nuo ${hm(sleeping.s)}` : ls ? `pabudo ${hm(ls.e)}${sleepRun?" · miegas pristabdytas":""}` : "miegas nepažymėtas"}</div></div>
   </div>`;
+  const lb = lastOf("bath"), lw = lastOf("weight", e=>+e.d?.g);
+  if(lb || lw) h += `<div class="card small" style="margin-top:8px">${lb?`🛁 Maudynės: <b>${daysAgo(lb.s)}</b>`:""}${lb&&lw?" · ":""}${lw?`⚖️ ${fmtKg(lw.d.g)} (${daysAgo(lw.s)})`:""}</div>`;
   if(lp) h += `<div class="card small" style="margin-top:8px">🥛 Paskutinis nutraukimas prieš <b class="ago" data-t="${lp.e||lp.s}">${dur(now-(lp.e||lp.s))}</b> · ${pumpMl(lp)} ml</div>`;
 
   // smart tips
@@ -608,6 +619,9 @@ function renderHome(){
   h += `<p class="disc">Patarimai yra bendro pobūdžio ir nepakeičia gydytojo konsultacijos.</p>`;
   $("#pg-home").innerHTML = h;
 }
+function daysAgo(ms){ const d = Math.round((dayStart(Date.now()) - dayStart(ms))/DAY);
+  return d<=0 ? "šiandien" : d===1 ? "vakar" : `prieš ${d} ${pl(d,["dieną","dienas","dienų"])}`; }
+function fmtKg(g){ return (g/1000).toFixed(2).replace(".",",") + " kg"; }
 function pumpMl(p){ return (+p.d?.l||0)+(+p.d?.r||0)+(+p.d?.ml||0); }
 function dayBar(d0){
   const d1 = addDays(d0,1), now = Date.now(), L = list(), pct = t => ((t-d0)/DAY*100).toFixed(2);
@@ -616,7 +630,7 @@ function dayBar(d0){
     const a = Math.max(x,d0), b = Math.min(y, d1); if(b<=a) return;
     h += `<div class="blk" style="left:${pct(a)}%;width:${((b-a)/DAY*100).toFixed(2)}%"></div>`;
   }));
-  L.filter(e=>e.t!=="sleep" && e.s>=d0 && e.s<d1).forEach(e=> h += `<div class="mk ${e.t}" style="left:${pct(e.s)}%"></div>`);
+  L.filter(e=>e.t!=="sleep" && e.t!=="weight" && e.t!=="vaccine" && e.s>=d0 && e.s<d1).forEach(e=> h += `<div class="mk ${e.t}" style="left:${pct(e.s)}%"></div>`);
   return `<div class="daybar">${h}</div><div class="hours"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>`;
 }
 
@@ -635,9 +649,12 @@ function describe(e){
     return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
   if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e&&activeMs(e)>=MIN?` · ${dur(activeMs(e))}`:""}`};
   if(e.t==="diaper") return {t:"Sauskelnės", d:[d.w?"šlapios":"", d.p?"purvinos":""].filter(Boolean).join(" ir ")||"sausos"};
+  if(e.t==="bath") return {t:"Maudynės", d:""};
+  if(e.t==="weight") return {t:"Svoris ir ūgis", d:[+d.g?fmtKg(d.g):"", +d.h?`${String(d.h).replace(".",",")} cm`:"", +d.hc?`galva ${String(d.hc).replace(".",",")} cm`:""].filter(Boolean).join(" · ")};
+  if(e.t==="vaccine") return {t:"Skiepas", d:d.name||""};
   return {t:e.t, d:""};
 }
-const ICON = {feed:"🍼", sleep:"😴", pump:"🥛", diaper:"🧷"};
+const ICON = {feed:"🍼", sleep:"😴", pump:"🥛", diaper:"🧷", bath:"🛁", weight:"⚖️", vaccine:"💉"};
 function renderHist(){
   const d0 = histDay, d1 = addDays(d0,1), s = dayStats(d0);
   const items = list().filter(e => (e.s>=d0 && e.s<d1) || (e.t==="sleep" && inRange(e,d0,d1)>0)).sort((a,b)=>b.s-a.s);
@@ -669,6 +686,39 @@ function chart(vals, color, fmt, band){
     return `<div class="col"><div class="val">${v?fmt(v):""}</div><div class="bar" style="height:${(v/max*78).toFixed(1)}%;background:${color}"></div><div class="lb">${i===6?"Šiand.":WD[new Date(d).getDay()]}</div></div>`;
   }).join("")}</div>`;
 }
+function weightGainNorm(weeks){ return weeks < 13 ? [150,200] : weeks < 26 ? [100,150] : [70,90]; }
+function growthHtml(){
+  const W = list().filter(e=>e.t==="weight").sort((a,b)=>a.s-b.s), V = list().filter(e=>e.t==="vaccine").sort((a,b)=>b.s-a.s), B = list().filter(e=>e.t==="bath");
+  let h = `<h2>Augimas</h2>`;
+  const wg = W.filter(e=>+e.d.g);
+  if(wg.length){
+    const last = wg[wg.length-1], a = age(), Ng = weightGainNorm(a.weeks);
+    let gain = "";
+    const ref = [...wg].reverse().find(e=> last.s - e.s >= 6*DAY);
+    if(ref){ const perW = (last.d.g - ref.d.g) / ((last.s - ref.s)/(7*DAY)); gain = `Priaugo ~<b>${Math.round(perW)} g per savaitę</b> (nuo ${new Date(ref.s).toLocaleDateString("lt-LT",{month:"long",day:"numeric"})}). Jos amžiui įprasta apie ${Ng[0]}–${Ng[1]} g/sav.`; }
+    const birth = new Date(baby().birth+"T00:00:00").getTime();
+    const xs = wg.map(e=>e.s), ys = wg.map(e=>+e.d.g), x0 = Math.min(...xs), x1 = Math.max(...xs, x0+DAY), y0 = Math.min(...ys)-150, y1 = Math.max(...ys)+150;
+    const X = x => 30 + (x-x0)/(x1-x0)*300, Y = y => 135 - (y-y0)/(y1-y0)*120;
+    const pts = wg.map(e=>`${X(e.s).toFixed(1)},${Y(+e.d.g).toFixed(1)}`).join(" ");
+    h += `<div class="card"><div style="font-weight:700">Svoris: ${fmtKg(last.d.g)}</div><div class="muted small">${new Date(last.s).toLocaleDateString("lt-LT",{month:"long",day:"numeric"})} · ${wg.length} ${pl(wg.length,["matavimas","matavimai","matavimų"])}</div>
+      ${wg.length>1?`<svg class="wline" viewBox="0 0 340 150"><polyline points="${pts}" fill="none" stroke="var(--growth)" stroke-width="2.5" stroke-linejoin="round"/>
+        ${wg.map(e=>`<circle cx="${X(e.s).toFixed(1)}" cy="${Y(+e.d.g).toFixed(1)}" r="3.5" fill="var(--growth)"/>`).join("")}
+        <text x="2" y="${Y(y1-150)+4}" font-size="10" fill="var(--muted)">${(Math.max(...ys)/1000).toFixed(1).replace(".",",")}</text><text x="2" y="${Y(y0+150)+4}" font-size="10" fill="var(--muted)">${(Math.min(...ys)/1000).toFixed(1).replace(".",",")}</text>
+        <text x="30" y="149" font-size="10" fill="var(--muted)">${new Date(x0).toLocaleDateString("lt-LT",{month:"2-digit",day:"2-digit"})}</text><text x="330" y="149" font-size="10" fill="var(--muted)" text-anchor="end">${new Date(x1).toLocaleDateString("lt-LT",{month:"2-digit",day:"2-digit"})}</text></svg>`:""}
+      ${gain?`<div class="small" style="margin-top:6px">${gain}</div>`:""}
+      ${!ref && wg.length?`<div class="muted small" style="margin-top:6px">Pasverkite kas 1–2 savaites – tada matysite priaugimą per savaitę.</div>`:""}</div>`;
+  }
+  const hs = W.filter(e=>+e.d.h||+e.d.hc);
+  if(hs.length){ const l = hs[hs.length-1]; h += `<div class="card small">📏 ${+l.d.h?`Ūgis <b>${String(l.d.h).replace(".",",")} cm</b>`:""}${+l.d.h&&+l.d.hc?" · ":""}${+l.d.hc?`galvos apimtis <b>${String(l.d.hc).replace(".",",")} cm</b>`:""} <span class="muted">(${daysAgo(l.s)})</span></div>`; }
+  if(!W.length) h += `<div class="card muted small">Pažymėkite svorį (⚖️ Svoris pradžios ekrane) – čia matysite augimo kreivę ir priaugimą per savaitę.</div>`;
+  h += `<div class="card" style="margin-top:10px"><div style="font-weight:700">⚖️ Matavimai</div>${W.length?[...W].reverse().map(e=>`<div class="item weight" data-edit="${e.id}"><div class="ic">⚖️</div><div class="m"><div class="tt">${esc(describe(e).d)}</div></div><div class="tm">${new Date(e.s).toLocaleDateString("lt-LT")}</div></div>`).join(""):`<div class="muted small">Dar nėra</div>`}<div class="btns"><button class="btn" data-new="weight">＋ Naujas matavimas</button></div></div>`;
+  h += `<h2>Skiepai</h2><div class="card">${V.length?V.map(e=>`<div class="item vaccine" data-edit="${e.id}"><div class="ic">💉</div><div class="m"><div class="tt">${esc(e.d.name||"Skiepas")}</div>${e.n?`<div class="dd">${esc(e.n)}</div>`:""}</div><div class="tm">${new Date(e.s).toLocaleDateString("lt-LT")}<div>${(()=>{const a=age(e.s);return a.months?a.months+" mėn.":a.weeks+" sav.";})()}</div></div></div>`).join(""):`<div class="muted small">Skiepų dar nepažymėta</div>`}
+    <div class="btns"><button class="btn" data-new="vaccine">＋ Pažymėti skiepą</button></div></div>`;
+  const b30 = B.filter(e=>e.s > Date.now()-30*DAY).length, lb = B.sort((a,b)=>b.s-a.s)[0];
+  h += `<h2>Maudynės</h2><div class="card small">${lb?`Paskutinės – <b>${daysAgo(lb.s)}</b> (${new Date(lb.s).toLocaleDateString("lt-LT",{month:"long",day:"numeric"})}) · per 30 d.: ${b30} ${pl(b30,["kartas","kartai","kartų"])}`:"Maudynių dar nepažymėta"}
+    <div class="btns"><button class="btn" data-new="bath">＋ Pažymėti maudynes</button></div></div>`;
+  return h;
+}
 function renderStats(){
   const t0 = dayStart(Date.now()), days = [6,5,4,3,2,1,0].map(i=>addDays(t0,-i)), S = days.map(dayStats), a = age(), N = norms(a.weeks);
   const sleepH = S.map(s=>+(s.sleepMs/HOUR).toFixed(1)), feeds = S.map(s=>s.feeds.length), pump = S.map(s=>s.pumpMl), night = days.map(d=>+(nightLongest(d)/HOUR).toFixed(1));
@@ -686,6 +736,7 @@ function renderStats(){
   const b = S.map(s=>s.bottleMl);
   if(b.some(Boolean)) h += `<div class="card"><div style="font-weight:700">Išgerta iš buteliuko</div><div class="muted small">Vidurkis ${Math.round(avg(full.map(s=>s.bottleMl)))} ml per dieną${full.some(s=>s.formulaMl)?`, iš jų mišinys ~${Math.round(avg(full.filter(s=>s.bottleMl).map(s=>s.formulaMl))||0)} ml`:""}</div>
     ${chart(b, "color-mix(in srgb,var(--feed) 60%,var(--pump))", v=>v)}</div>`;
+  h += growthHtml();
   h += `<p class="disc">Vidurkiai skaičiuojami iš dienų, kuriose yra įrašų (be šiandienos). Kiekvienas kūdikis skirtingas – rekomendacijos yra orientacinės.</p>`;
   $("#pg-stats").innerHTML = h;
 }
@@ -723,6 +774,10 @@ function renderTips(){
     lines.push(`Vidutiniškai miega <b>${avgSleep.toFixed(1).replace(".",",")} val.</b> per parą – ${avgSleep<N.sleep[0]-0.5?"šiek tiek mažiau nei rekomenduojama":avgSleep>N.sleep[1]+0.5?"daugiau nei įprasta":"tiek, kiek rekomenduojama"} (${N.sleep[0]}–${N.sleep[1]} val.).`);
     lines.push(`Valgo vidutiniškai <b>${avgFeeds.toFixed(1).replace(".",",")} kartų</b> per parą (įprasta ${N.feeds[0]}–${N.feeds[1]}).`);
     if(avgNaps) lines.push(`Per dieną vidutiniškai <b>${avgNaps.toFixed(1).replace(".",",")}</b> pogulių (jos amžiui įprasta ${N.naps[0]}–${N.naps[1]}).`);
+    const wg = list().filter(e=>e.t==="weight" && +e.d?.g).sort((a,b)=>a.s-b.s);
+    if(wg.length>1){ const l = wg[wg.length-1], r0 = [...wg].reverse().find(e=>l.s-e.s>=6*DAY);
+      if(r0){ const pw = Math.round((l.d.g-r0.d.g)/((l.s-r0.s)/(7*DAY))), Ng = weightGainNorm(a.weeks);
+        lines.push(`Svoris ${fmtKg(l.d.g)}, priaugo ~<b>${pw} g/sav.</b> (įprasta ${Ng[0]}–${Ng[1]} g/sav.).`); } }
     if(nights.length) lines.push(`Ilgiausias nakties miegas per savaitę – <b>${dur(Math.max(...nights))}</b>.`);
     h += `<div class="card"><ul class="nice">${lines.map(x=>`<li>${dots(x)}</li>`).join("")}</ul><div class="muted small" style="margin-top:6px">Paskutinių ${S.length} d. duomenys</div></div>`;
   } else h += `<div class="card muted">Kai pažymėsite bent vieną pilną dieną, čia matysite, kaip ${esc(b.name)} miega ir valgo, palyginti su jos amžiaus rekomendacijomis.</div>`;
@@ -876,10 +931,13 @@ function addSheet(){
   openSheet(`<h3>Pridėti įrašą</h3><div class="big-opts">
     <button class="opt" data-n="breast">🤱 Maitinimas krūtimi</button><button class="opt" data-n="bottle">🍼 Buteliukas</button>
     <button class="opt" data-n="sleep">😴 Miegas</button><button class="opt" data-n="pump">🥛 Nutraukimas</button>
-    <button class="opt" data-n="diaper">🧷 Sauskelnės</button>${age().weeks>=17?`<button class="opt" data-n="solid">🥣 Papildomas maistas</button>`:""}</div>`);
+    <button class="opt" data-n="diaper">🧷 Sauskelnės</button><button class="opt" data-n="bath">🛁 Maudynės</button>
+    <button class="opt" data-n="weight">⚖️ Svoris / ūgis</button><button class="opt" data-n="vaccine">💉 Skiepas</button>
+    ${age().weeks>=17?`<button class="opt" data-n="solid">🥣 Papildomas maistas</button>`:""}</div>`);
   $("#sheet").onclick = ev => { const b = ev.target.closest("[data-n]"); if(!b) return; const n = b.dataset.n, id = uid();
     const T = {breast:{t:"feed",d:{m:"breast",first:"L",side:"L",l:10*MIN,r:10*MIN},len:20}, bottle:{t:"feed",d:{m:"bottle",ml:"",milk:"breast"},len:0},
-      solid:{t:"feed",d:{m:"solid",food:""},len:0}, sleep:{t:"sleep",d:{k:"nap"},len:60}, pump:{t:"pump",d:{l:"",r:""},len:15}, diaper:{t:"diaper",d:{w:true,p:false},len:0}}[n];
+      solid:{t:"feed",d:{m:"solid",food:""},len:0}, sleep:{t:"sleep",d:{k:"nap"},len:60}, pump:{t:"pump",d:{l:"",r:""},len:15}, diaper:{t:"diaper",d:{w:true,p:false},len:0},
+      bath:{t:"bath",d:{},len:0}, weight:{t:"weight",d:{g:"",h:"",hc:""},len:0}, vaccine:{t:"vaccine",d:{name:""},len:0}}[n];
     editSheet({id, t:T.t, s:base-T.len*MIN, e:base, d:T.d}, true);
   };
 }
@@ -906,9 +964,14 @@ function editSheet(e, isNew){
   if(e.t==="sleep") f += `<label class="f">Miego tipas</label><div class="seg" id="xK"><button data-v="nap" class="${d.k!=="night"?"on":""}">Pogulis</button><button data-v="night" class="${d.k==="night"?"on":""}">Nakties miegas</button></div>`;
   if(e.t==="pump") f += `<div class="two"><div><label class="f">Kairė, ml</label><input class="in" id="xPL" type="number" inputmode="numeric" value="${esc(d.l)}"></div>
       <div><label class="f">Dešinė, ml</label><input class="in" id="xPR" type="number" inputmode="numeric" value="${esc(d.r)}"></div></div>`;
+  if(e.t==="weight") f += `<label class="f">Svoris, g</label><input class="in" id="xG" type="number" inputmode="numeric" placeholder="pvz. 6250" value="${esc(d.g)}">
+    <div class="two"><div><label class="f">Ūgis, cm</label><input class="in" id="xH" type="number" inputmode="decimal" step="0.1" value="${esc(d.h)}"></div>
+    <div><label class="f">Galvos apimtis, cm</label><input class="in" id="xHc" type="number" inputmode="decimal" step="0.1" value="${esc(d.hc)}"></div></div>`;
+  if(e.t==="vaccine") f += `<label class="f">Skiepas</label><input class="in" id="xVn" list="vacList" placeholder="pvz. 6-valentė, pneumokokinė, rotavirusinė" value="${esc(d.name)}">
+    <datalist id="vacList">${["6-valentė (DTaP-IPV-Hib-HepB)","Pneumokokinė (PCV)","Rotavirusinė","Meningokokinė B","Meningokokinė ACWY","Tymų, epideminio parotito, raudonukės (MMR)","Vėjaraupių","Gripo","Erkinio encefalito","Hepatito B","Tuberkuliozės (BCG)"].map(v=>`<option value="${v}">`).join("")}</datalist>`;
   if(e.t==="diaper") f += `<label class="chk"><input type="checkbox" id="xW" ${d.w?"checked":""}> 💧 Šlapios</label><label class="chk"><input type="checkbox" id="xP" ${d.p?"checked":""}> 💩 Purvinos</label>`;
 
-  const point = e.t==="diaper" || (e.t==="feed" && d.m!=="breast");
+  const point = ["diaper","bath","weight","vaccine"].includes(e.t) || (e.t==="feed" && d.m!=="breast");
   f += point ? `<label class="f">Laikas</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">`
     : `<label class="f">Pradžia</label><input class="in" id="xS" type="datetime-local" value="${toInput(e.s)}">
        <label class="f">Pabaiga</label><input class="in" id="xE" type="datetime-local" value="${run?"":toInput(e.e)}" ${run?"disabled":""}>
@@ -933,6 +996,8 @@ function editSheet(e, isNew){
     if(e.t==="sleep") d.k = segv("xK");
     if(e.t==="pump"){ d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; }
     if(e.t==="diaper"){ d.w = $("#xW").checked; d.p = $("#xP").checked; }
+    if(e.t==="weight"){ d.g = +$("#xG").value||""; d.h = +String($("#xH").value).replace(",",".")||""; d.hc = +String($("#xHc").value).replace(",",".")||""; if(!d.g && !d.h && !d.hc){ $("#xG").focus(); return; } }
+    if(e.t==="vaccine") d.name = $("#xVn").value.trim();
     e.n = $("#xN").value.trim();
     if(d.pl){ const end = e.e ?? Date.now(); d.pl = d.pl.map(([a,b])=>[Math.max(a,e.s), Math.min(b,end)]).filter(([a,b])=>b>a); }
     closeSheet(); put(e); toast("Išsaugota");
@@ -1020,6 +1085,8 @@ document.addEventListener("click", ev => {
   const ed = ev.target.closest("[data-edit]"); if(ed){ editSheet(entries[ed.dataset.edit]); return; }
   const dd = ev.target.closest("[data-day]"); if(dd){ histDay = addDays(histDay, +dd.dataset.day); if(histDay>dayStart(Date.now())) histDay = dayStart(Date.now()); render(); return; }
   if(ev.target.closest("[data-add]")){ addSheet(); return; }
+  const nw = ev.target.closest("[data-new]"); if(nw){ const t = nw.dataset.new;
+    editSheet({id:uid(), t, s:Date.now(), e:Date.now(), d: t==="weight"?{g:"",h:"",hc:""} : t==="vaccine"?{name:""} : {}}, true); return; }
   const g = ev.target.closest("[data-goto]"); if(g){ go(g.dataset.goto); return; }
   const n = ev.target.closest("nav [data-pg]"); if(n){ go(n.dataset.pg); return; }
 });
