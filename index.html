@@ -511,10 +511,10 @@ function bottleSplit(f){ const d = f.d||{}, ml = +d.ml||0;
   if(d.milk==="formula") return {bm:0, fm:ml};
   return {bm:ml, fm:0}; }
 function breastTimes(f){
-  const d = f.d||{}; let l=+d.l||0, r=+d.r||0;
-  if(f.e==null && d.ss){ const x = Date.now()-d.ss; if(d.side==="R") r+=x; else l+=x; }
-  if(!l && !r && f.e) { if(d.side==="R") r=f.e-f.s; else l=f.e-f.s; }
-  return {l, r, tot:l+r};
+  const d = f.d||{}; let l=+d.l||0, r=+d.r||0, b=+d.b||0;
+  if(f.e==null && d.ss){ const x = Date.now()-d.ss; if(d.side==="R") r+=x; else if(d.side==="B") b+=x; else l+=x; }
+  if(!l && !r && !b && f.e) { if(d.side==="R") r=f.e-f.s; else if(d.side==="B") b=f.e-f.s; else l=f.e-f.s; }
+  return {l, r, b, tot:l+r+b};
 }
 function lastOf(t, pred=()=>true){ return list().filter(e=>e.t===t && pred(e)).sort((a,b)=>b.s-a.s)[0]; }
 function nightTotal(d0){ // total night sleep: night sleeps started 18:00 of d0-1 .. 11:00 of d0
@@ -531,8 +531,9 @@ function suggestSide(){
   const first = f.d.first || f.d.side || "L";
   return first==="L" ? "R" : "L";
 }
-const SIDE = {L:"kairė", R:"dešinė"};
-const SIDE_GEN = {L:"kairės", R:"dešinės"};
+const SIDE = {L:"kairė", R:"dešinė", B:"abi"};
+const SIDE_GEN = {L:"kairės", R:"dešinės", B:"abiejų"};
+const sideTxt = x => x==="B" ? "abi krūtys" : `${SIDE[x]||"kairė"} krūtis`;
 
 function smartTips(){
   const tips = [], now = Date.now(), a = age(), N = norms(a.weeks), name = baby().name;
@@ -610,14 +611,14 @@ function runCard(e){
   if(e.t==="feed"){
     const bt = breastTimes(e), d = e.d;
     return `<div class="run feed ${P?"paused":""}" data-id="${e.id}">
-      <div class="lbl">🍼 Maitinimas · ${SIDE[d.side]} krūtis</div>
+      <div class="lbl">🤱 Maitinimas · ${sideTxt(d.side)}</div>
       <div class="big tick" data-id="${e.id}">${clock(activeMs(e))}</div>
       <div class="sub">${since}</div>
-      <div class="sides">
+      ${d.side==="B" && !bt.l && !bt.r ? "" : `<div class="sides">
         <div class="${d.side==="L"?"on":""}">Kairė<b class="tickL">${clock(bt.l)}</b></div>
         <div class="${d.side==="R"?"on":""}">Dešinė<b class="tickR">${clock(bt.r)}</b></div>
-      </div>
-      <div class="row"><button class="stop" data-act="stop">■ Baigti</button>${pbtn}<button data-act="switch">⇄ Pusė</button><button data-act="edit">✎</button></div>
+      </div>`}
+      <div class="row"><button class="stop" data-act="stop">■ Baigti</button>${pbtn}${d.side==="B"?"":`<button data-act="switch">⇄ Pusė</button>`}<button data-act="edit">✎</button></div>
     </div>`;
   }
   const lbl = e.t==="sleep" ? `😴 ${e.d?.k==="night"?"Nakties miegas":"Pogulis"}` : "🥛 Pieno nutraukimas";
@@ -646,7 +647,7 @@ function renderHome(){
     const sleepNow = sleepRun && !paused(sleepRun);
     h += `<div class="grid3">
       ${gridBtn("bottle","🍼","Buteliukas", sinceTxt(lBottle,now), false, 0, lBottle ? `<b>${lBottle.d.ml||"?"} ml</b> · ${hm(lBottle.s)}<br>${milkTxt(lBottle)}` : "")}
-      ${gridBtn("breast","🤱","Krūtis", sinceTxt(lBreast,now), !!feedRun, feedRun?.s, feedRun ? `${SIDE[feedRun.d.side]} krūtis` : lBreast ? `<b>${dur(breastTimes(lBreast).tot)}</b> · ${hm(lBreast.s)}` : "")}
+      ${gridBtn("breast","🤱","Krūtis", sinceTxt(lBreast,now), !!feedRun, feedRun?.s, feedRun ? sideTxt(feedRun.d.side) : lBreast ? `<b>${dur(breastTimes(lBreast).tot)}</b> · ${hm(lBreast.s)}` : "")}
       ${gridBtn("sleep","😴", sleepNow?"Miega":sleepRun?"Miegas ⏸":"Miegas", sleepRun ? `prabudo ${hm(sleepRun.d.p)}` : lSleep ? `budri ${dur(now-lSleep.e)}` : "dar nėra", sleepNow, sleepRun?.s,
           sleepRun ? `nuo ${hm(sleepRun.s)}` : lSleep ? `<b>${dur(activeMs(lSleep))}</b><br>${hm(lSleep.s)}–${hm(lSleep.e)}` : "")}
       ${gridBtn("pump","🥛","Nutraukimas", sinceTxt(lPump,now), !!pumpRun, pumpRun?.s, pumpRun ? `nuo ${hm(pumpRun.s)}` : lPump ? `<b>${pumpMl(lPump)} ml</b> · ${hm(lPump.s)}${lPump.d.l||lPump.d.r?`<br>K ${lPump.d.l||0} · D ${lPump.d.r||0}`:""}` : "")}
@@ -717,7 +718,7 @@ function describe(e){
   const d = e.d||{};
   if(e.t==="feed"){
     if(d.m==="breast"){ const bt = breastTimes(e);
-      return {t:"Maitinimas krūtimi", d:[bt.l?`K ${dur(bt.l)}`:"", bt.r?`D ${dur(bt.r)}`:""].filter(Boolean).join(" · ") || SIDE[d.side]}; }
+      return {t:"Maitinimas krūtimi", d:[bt.l?`K ${dur(bt.l)}`:"", bt.r?`D ${dur(bt.r)}`:"", bt.b?`abi ${dur(bt.b)}`:""].filter(Boolean).join(" · ") || sideTxt(d.side)}; }
     if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":d.milk==="mix"?`${+d.bm||0} pienas + ${+d.fm||0} mišinys`:"motinos pienas"}`};
     return {t:"Papildomas maistas", d:d.food||""};
   }
@@ -874,7 +875,7 @@ function tick(){
   document.querySelectorAll(".ptick").forEach(el => el.textContent = clock(now - +el.dataset.p));
   document.querySelectorAll(".ago").forEach(el => el.textContent = dur(now - +el.dataset.t));
   document.querySelectorAll(".run.feed").forEach(c => { const e = entries[c.dataset.id]; if(!e) return; const bt = breastTimes(e);
-    c.querySelector(".tickL").textContent = clock(bt.l); c.querySelector(".tickR").textContent = clock(bt.r); });
+    const L = c.querySelector(".tickL"), Rr = c.querySelector(".tickR"); if(L) L.textContent = clock(bt.l); if(Rr) Rr.textContent = clock(bt.r); });
 }
 setInterval(tick, 1000);
 setInterval(() => { if(!$("#scrim").classList.contains("show")) render(); }, 60e3);
@@ -886,17 +887,19 @@ function startFeed(side){
   running().filter(e=>e.t==="feed").forEach(stopEntry);
   const now = Date.now();
   put({id:uid(), t:"feed", s:now, e:null, d:{m:"breast", first:side, side, l:0, r:0, ss:now}});
-  toast(`Maitinimas pradėtas · ${SIDE[side]} krūtis`);
+  toast(`Maitinimas pradėtas · ${sideTxt(side)}`);
 }
 function switchSide(e){
   const now = Date.now(), d = e.d;
+  if(d.side==="B") return;
   if(paused(e)){ d.side = d.side==="L" ? "R" : "L"; put(e); return; }
   if(d.side==="L") d.l = (+d.l||0) + (now - d.ss); else d.r = (+d.r||0) + (now - d.ss);
   d.side = d.side==="L" ? "R" : "L"; d.ss = now; put(e);
 }
 function accSide(e, now){ // fold the running side's time into l/r
   if(e.t==="feed" && e.d?.m==="breast" && e.d.ss){
-    if(e.d.side==="L") e.d.l = (+e.d.l||0) + (now - e.d.ss); else e.d.r = (+e.d.r||0) + (now - e.d.ss);
+    const k = e.d.side==="R" ? "r" : e.d.side==="B" ? "b" : "l";
+    e.d[k] = (+e.d[k]||0) + (now - e.d.ss);
     delete e.d.ss;
   }
 }
@@ -957,10 +960,11 @@ function feedSheet(){
     <div class="big-opts">
       <button class="opt" data-f="L">▶ Kairė<span>pradėti laikmatį</span></button>
       <button class="opt" data-f="R">▶ Dešinė<span>pradėti laikmatį</span></button>
+      <button class="opt wide" data-f="B">▶ Abi<span>pradėti laikmatį – skaičiuojamas bendras laikas</span></button>
       <button class="opt wide" data-f="past">✎ Įrašyti praėjusį<span>įvesti rankiniu būdu</span></button>
     </div>`);
   $("#sheet").onclick = ev => { const b = ev.target.closest("[data-f]"); if(!b) return; const f = b.dataset.f;
-    if(f==="L"||f==="R"){ closeSheet(); startFeed(f); }
+    if(f==="L"||f==="R"||f==="B"){ closeSheet(); startFeed(f); }
     else if(f==="bottle") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"bottle", ml:"", milk:"breast"}}, true);
     else if(f==="solid") editSheet({id:uid(), t:"feed", s:Date.now(), e:Date.now(), d:{m:"solid", food:""}}, true);
     else editSheet({id:uid(), t:"feed", s:Date.now()-20*MIN, e:Date.now(), d:{m:"breast", first:sug||"L", side:sug||"L", l:10*MIN, r:10*MIN}}, true);
@@ -1007,7 +1011,8 @@ function editSheet(e, isNew){
     const bt = breastTimes(e);
     f += `<div class="two"><div><label class="f">Kairė, min.</label><input class="in" id="xL" type="number" inputmode="numeric" value="${Math.round(bt.l/MIN)}" ${run?"disabled":""}></div>
       <div><label class="f">Dešinė, min.</label><input class="in" id="xR" type="number" inputmode="numeric" value="${Math.round(bt.r/MIN)}" ${run?"disabled":""}></div></div>
-      <label class="f">Pradėta nuo</label><div class="seg" id="xFirst"><button data-v="L" class="${(d.first||d.side)==="L"?"on":""}">Kairės</button><button data-v="R" class="${(d.first||d.side)==="R"?"on":""}">Dešinės</button></div>`;
+      <label class="f">Abi krūtys (bendras laikas), min.</label><input class="in" id="xB" type="number" inputmode="numeric" value="${bt.b?Math.round(bt.b/MIN):""}" ${run?"disabled":""}>
+      <label class="f">Pradėta nuo</label><div class="seg" id="xFirst"><button data-v="L" class="${(d.first||d.side)==="L"?"on":""}">Kairės</button><button data-v="R" class="${(d.first||d.side)==="R"?"on":""}">Dešinės</button><button data-v="B" class="${(d.first||d.side)==="B"?"on":""}">Abiejų</button></div>`;
   }
   if(e.t==="feed" && d.m==="bottle"){
     const mix = d.milk==="mix";
@@ -1044,7 +1049,8 @@ function editSheet(e, isNew){
     const s = fromInput($("#xS").value); if(!s){ $("#xS").focus(); return; }
     e.s = s;
     if(point) e.e = s; else if(!run){ const en = fromInput($("#xE").value); e.e = en && en > s ? en : s; }
-    if(e.t==="feed" && d.m==="breast"){ d.first = segv("xFirst") || d.first; if(!run){ d.l = (+$("#xL").value||0)*MIN; d.r = (+$("#xR").value||0)*MIN; d.side = d.r && !d.l ? "R" : d.l && !d.r ? "L" : d.side; } }
+    if(e.t==="feed" && d.m==="breast"){ d.first = segv("xFirst") || d.first; if(!run){ d.l = (+$("#xL").value||0)*MIN; d.r = (+$("#xR").value||0)*MIN; d.b = (+$("#xB").value||0)*MIN;
+      d.side = d.b && !d.l && !d.r ? "B" : d.r && !d.l && !d.b ? "R" : d.l && !d.r && !d.b ? "L" : d.side; } }
     if(e.t==="feed" && d.m==="bottle"){ d.milk = segv("xMilk");
       if(d.milk==="mix"){ d.bm = +$("#xBm").value||0; d.fm = +$("#xFm").value||0; d.ml = d.bm + d.fm || ""; }
       else { d.ml = +$("#xMl").value || ""; delete d.bm; delete d.fm; } }
