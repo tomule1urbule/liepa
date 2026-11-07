@@ -1,4 +1,4 @@
-const CACHE = "liepa-v20";
+const CACHE = "liepa-v21";
 const SHELL = ["./", "index.html", "liepa.webmanifest", "icons/liepa-icon-192.png", "icons/liepa-icon-512.png", "icons/liepa-icon-180.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });

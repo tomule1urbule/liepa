@@ -745,7 +745,7 @@ function describe(e){
   }
   if(e.t==="sleep"){ const pz = pauseMs(e), n = pauses(e).length;
     return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
-  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e&&activeMs(e)>=MIN?` · ${dur(activeMs(e))}`:""}`};
+  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:+d.ml?" · abi krūtys":""}${e.e&&activeMs(e)>=MIN?` · ${dur(activeMs(e))}`:""}`};
   if(e.t==="diaper") return {t:"Sauskelnės", d:[d.w?"šlapios":"", d.p?"purvinos":""].filter(Boolean).join(" ir ")||"sausos"};
   if(e.t==="bath") return {t:"Maudynės", d:""};
   if(e.t==="weight") return {t:"Svoris ir ūgis", d:[+d.g?fmtKg(d.g):"", +d.h?`${String(d.h).replace(".",",")} cm`:"", +d.hc?`galva ${String(d.hc).replace(".",",")} cm`:""].filter(Boolean).join(" · ")};
@@ -1195,8 +1195,14 @@ function editSheet(e, isNew){
   }
   if(e.t==="feed" && d.m==="solid") f += `<label class="f">Ką valgė</label><input class="in" id="xFood" placeholder="pvz. moliūgų tyrelė" value="${esc(d.food)}">`;
   if(e.t==="sleep") f += `<label class="f">Miego tipas</label><div class="seg" id="xK"><button data-v="nap" class="${d.k!=="night"?"on":""}">Pogulis</button><button data-v="night" class="${d.k==="night"?"on":""}">Nakties miegas</button></div>`;
-  if(e.t==="pump") f += `<div class="two"><div><label class="f">Kairė, ml</label><input class="in" id="xPL" type="number" inputmode="numeric" value="${esc(d.l)}"></div>
-      <div><label class="f">Dešinė, ml</label><input class="in" id="xPR" type="number" inputmode="numeric" value="${esc(d.r)}"></div></div>`;
+  if(e.t==="pump"){
+    const lp = lastOf("pump", x=>x.id!==e.id && x.e);
+    const both = (+d.ml && !+d.l && !+d.r) || (!+d.ml && !+d.l && !+d.r && (!lp || (+lp.d?.ml && !+lp.d?.l && !+lp.d?.r)));
+    f += `<label class="f">Iš kurios krūties</label><div class="seg" id="xPMode"><button data-v="sep" class="${both?"":"on"}">Kairė / dešinė</button><button data-v="both" class="${both?"on":""}">Abi</button></div>
+      <div id="xPSep" class="two ${both?"hide":""}"><div><label class="f">Kairė, ml</label><input class="in" id="xPL" type="number" inputmode="numeric" value="${esc(d.l)}"></div>
+      <div><label class="f">Dešinė, ml</label><input class="in" id="xPR" type="number" inputmode="numeric" value="${esc(d.r)}"></div></div>
+      <div id="xPBoth" class="${both?"":"hide"}"><label class="f">Abiejų krūtų kiekis, ml</label><input class="in" id="xPB" type="number" inputmode="numeric" value="${esc(+d.ml||((+d.l||0)+(+d.r||0))||"")}"></div>`;
+  }
   if(e.t==="weight") f += `<label class="f">Svoris, g</label><input class="in" id="xG" type="number" inputmode="numeric" placeholder="pvz. 6250" value="${esc(d.g)}">
     <div class="two"><div><label class="f">Ūgis, cm</label><input class="in" id="xH" type="number" inputmode="decimal" step="0.1" value="${esc(d.h)}"></div>
     <div><label class="f">Galvos apimtis, cm</label><input class="in" id="xHc" type="number" inputmode="decimal" step="0.1" value="${esc(d.hc)}"></div></div>`;
@@ -1213,6 +1219,7 @@ function editSheet(e, isNew){
   openSheet(`<h3>${title}</h3>${f}<div class="btns">${isNew?"":`<button class="btn del" id="xDel">Ištrinti</button>`}<button class="btn" id="xCancel">Atšaukti</button><button class="btn pri" id="xSave">Išsaugoti</button></div>`);
   const sheet = $("#sheet");
   sheet.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+    if(b.parentNode.id==="xPMode"){ const m = b.dataset.v==="both"; $("#xPSep").classList.toggle("hide", m); $("#xPBoth").classList.toggle("hide", !m); }
     if(b.parentNode.id==="xMilk"){ const m = b.dataset.v==="mix"; $("#xOne").classList.toggle("hide", m); $("#xTwo").classList.toggle("hide", !m); } };
   const segv = id => sheet.querySelector(`#${id} .on`)?.dataset.v;
   $("#xCancel").onclick = closeSheet;
@@ -1228,7 +1235,7 @@ function editSheet(e, isNew){
       else { d.ml = +$("#xMl").value || ""; delete d.bm; delete d.fm; } }
     if(e.t==="feed" && d.m==="solid") d.food = $("#xFood").value.trim();
     if(e.t==="sleep") d.k = segv("xK");
-    if(e.t==="pump"){ d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; }
+    if(e.t==="pump"){ if(segv("xPMode")==="both"){ d.ml = +$("#xPB").value || ""; d.l = ""; d.r = ""; } else { d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; delete d.ml; } }
     if(e.t==="diaper"){ d.w = $("#xW").checked; d.p = $("#xP").checked; }
     if(e.t==="weight"){ d.g = +$("#xG").value||""; d.h = +String($("#xH").value).replace(",",".")||""; d.hc = +String($("#xHc").value).replace(",",".")||""; if(!d.g && !d.h && !d.hc){ $("#xG").focus(); return; } }
     if(e.t==="vaccine") d.name = $("#xVn").value.trim();
