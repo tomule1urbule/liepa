@@ -54,6 +54,8 @@ h2 small{font-family:Inter;font-weight:500;font-size:13px;color:var(--muted);mar
 .run.sleep{background:linear-gradient(135deg,var(--sleep),color-mix(in srgb,var(--sleep) 65%,#000))}
 .run.pump{background:linear-gradient(135deg,var(--pump),color-mix(in srgb,var(--pump) 70%,#000))}
 [data-theme="dark"] .run{color:#10120f}
+.run.paused{filter:saturate(.35) brightness(.97)}
+.run.paused .big{opacity:.6}
 .run .lbl{font-weight:600;font-size:14px;opacity:.95;display:flex;gap:6px;align-items:center}
 .run .big{font-family:Fraunces,Georgia,serif;font-size:46px;font-weight:650;letter-spacing:.01em;line-height:1.05;margin:4px 0 2px;font-variant-numeric:tabular-nums}
 .run .sub{font-size:13px;opacity:.9}
@@ -400,7 +402,18 @@ const FACTS = [
 /* =========================================================
    Data analysis
    ========================================================= */
-function inRange(e, a, b){ const s=e.s, en = e.e ?? Date.now(); return Math.max(0, Math.min(en,b) - Math.max(s,a)); }
+/* Pauses: d.pl = [[from,to],...] finished pauses, d.p = start of current pause (or absent) */
+const paused = e => !!(e && e.e==null && e.d && e.d.p);
+function pauses(e){ const d = e.d||{}, out = (d.pl||[]).slice(); if(e.e==null && d.p) out.push([d.p, Date.now()]); return out; }
+function segs(e){ // active intervals (pauses removed)
+  const end = e.e ?? Date.now(); let out = [[e.s, end]];
+  for(const [a,b] of pauses(e).sort((x,y)=>x[0]-y[0])){
+    const nx = []; for(const [s0,e0] of out){ if(b<=s0 || a>=e0){ nx.push([s0,e0]); continue; } if(a>s0) nx.push([s0,a]); if(b<e0) nx.push([b,e0]); } out = nx; }
+  return out;
+}
+function activeMs(e){ return segs(e).reduce((t,[a,b])=>t+(b-a),0); }
+function pauseMs(e){ return Math.max(0, ((e.e ?? Date.now()) - e.s) - activeMs(e)); }
+function inRange(e, a, b){ return segs(e).reduce((t,[s0,e0])=>t+Math.max(0, Math.min(e0,b) - Math.max(s0,a)),0); }
 function dayStats(d0){
   const d1 = addDays(d0,1), L = list();
   const sleeps = L.filter(e => e.t==="sleep" && inRange(e,d0,d1)>0);
@@ -424,7 +437,7 @@ function breastTimes(f){
 function lastOf(t, pred=()=>true){ return list().filter(e=>e.t===t && pred(e)).sort((a,b)=>b.s-a.s)[0]; }
 function nightLongest(d0){ // night from 18:00 of d0-1 to 11:00 of d0
   const a = addDays(d0,-1) + 18*HOUR, b = d0 + 11*HOUR;
-  return list().filter(e=>e.t==="sleep" && e.e && e.s>=a && e.s<b && e.d?.k==="night").reduce((m,e)=>Math.max(m,e.e-e.s),0);
+  return list().filter(e=>e.t==="sleep" && e.e && e.s>=a && e.s<b && e.d?.k==="night").reduce((m,e)=>Math.max(m,...segs(e).map(([x,y])=>y-x)),0);
 }
 function suggestSide(){
   const f = lastOf("feed", e=>e.d?.m==="breast");
@@ -437,17 +450,22 @@ const SIDE_GEN = {L:"kairės", R:"dešinės"};
 
 function smartTips(){
   const tips = [], now = Date.now(), a = age(), N = norms(a.weeks), name = baby().name;
-  const run = running(), sleeping = run.find(e=>e.t==="sleep"), feeding = run.find(e=>e.t==="feed");
+  const run = running(), sleeping = run.find(e=>e.t==="sleep" && !paused(e)), feeding = run.find(e=>e.t==="feed");
   const L = list();
-  if(L.length < 3){ tips.push({i:"🌱", x:`Žymėkite maitinimus ir miegą – kuo daugiau duomenų, tuo tikslesni bus patarimai apie ${name}.`}); return tips; }
+  if(L.length < 3){ tips.push({i:"🌱", x:`Žymėkite maitinimus ir miegą – kuo daugiau duomenų, tuo tikslesni bus patarimai.`}); return tips; }
 
   // Wake window
-  const ls = lastOf("sleep", e=>e.e);
-  if(!sleeping && ls && now-ls.e < 8*HOUR){
-    const aw = (now - ls.e)/MIN;
-    if(aw >= N.wake[1]) tips.push({c:"warn", i:"😴", x:`Nemiega jau <b>${dur(now-ls.e)}</b> – tai ilgiau nei įprastas jos amžiaus budrumo langas (${N.wake[0]}–${N.wake[1]} min.). Metas migdyti.`});
-    else if(aw >= N.wake[0]) tips.push({i:"🌙", x:`Artėja miego metas (budri jau ${dur(now-ls.e)}). Stebėkite nuovargio ženklus: žiovauja, trina akis, žvelgia į tolį.`});
-    else tips.push({i:"⏰", x:`Kito miego langas – maždaug <b>${hm(ls.e+N.wake[0]*MIN)}–${hm(ls.e+N.wake[1]*MIN)}</b> (budrumo langas ${N.wake[0]}–${N.wake[1]} min.).`});
+  const ps = run.find(e=>e.t==="sleep" && paused(e));
+  if(ps){
+    const aw = now - ps.d.p;
+    tips.push({i:"⏸", x:`Miegas pristabdytas – prabudo prieš <b>${dur(aw)}</b>. Jei vėl užmigs, spauskite „Vėl užmigo“; jei ne – „Baigti“ (miegas baigsis ${hm(ps.d.p)}).`});
+  }
+  const lsx = lastOf("sleep", e=>e.e), wakeAt = ps ? ps.d.p : lsx?.e;
+  if(!sleeping && !ps && wakeAt && now-wakeAt < 8*HOUR){
+    const aw = (now - wakeAt)/MIN;
+    if(aw >= N.wake[1]) tips.push({c:"warn", i:"😴", x:`Nemiega jau <b>${dur(now-wakeAt)}</b> – tai ilgiau nei įprastas jos amžiaus budrumo langas (${N.wake[0]}–${N.wake[1]} min.). Metas migdyti.`});
+    else if(aw >= N.wake[0]) tips.push({i:"🌙", x:`Artėja miego metas (budri jau ${dur(now-wakeAt)}). Stebėkite nuovargio ženklus: žiovauja, trina akis, žvelgia į tolį.`});
+    else tips.push({i:"⏰", x:`Kito miego langas – maždaug <b>${hm(wakeAt+N.wake[0]*MIN)}–${hm(wakeAt+N.wake[1]*MIN)}</b> (budrumo langas ${N.wake[0]}–${N.wake[1]} min.).`});
   }
   // Feeding gap
   const lf = lastOf("feed");
@@ -500,38 +518,42 @@ function renderHeader(){
    Render: Home
    ========================================================= */
 function runCard(e){
-  const since = `pradėta ${hm(e.s)}${e.by?` · ${esc(e.by)}`:""}`;
+  const P = paused(e), pz = pauseMs(e);
+  const since = P ? `⏸ Pauzė · <span class="ptick" data-p="${e.d.p}">${clock(Date.now()-e.d.p)}</span>${e.t==="sleep"?" (pabudo "+hm(e.d.p)+")":""}`
+    : `pradėta ${hm(e.s)}${e.by?` · ${esc(e.by)}`:""}${pz>=MIN?` · pertraukos ${dur(pz)}`:""}`;
+  const pbtn = P ? `<button data-act="resume">▶ ${e.t==="sleep"?"Vėl užmigo":"Tęsti"}</button>` : `<button data-act="pause">⏸ Pauzė</button>`;
   if(e.t==="feed"){
     const bt = breastTimes(e), d = e.d;
-    return `<div class="run feed" data-id="${e.id}">
+    return `<div class="run feed ${P?"paused":""}" data-id="${e.id}">
       <div class="lbl">🍼 Maitinimas · ${SIDE[d.side]} krūtis</div>
-      <div class="big tick" data-s="${e.s}">${clock(Date.now()-e.s)}</div>
+      <div class="big tick" data-id="${e.id}">${clock(activeMs(e))}</div>
       <div class="sub">${since}</div>
       <div class="sides">
         <div class="${d.side==="L"?"on":""}">Kairė<b class="tickL">${clock(bt.l)}</b></div>
         <div class="${d.side==="R"?"on":""}">Dešinė<b class="tickR">${clock(bt.r)}</b></div>
       </div>
-      <div class="row"><button class="stop" data-act="stop">■ Baigti</button><button data-act="switch">⇄ Keisti pusę</button><button data-act="edit">Taisyti</button></div>
+      <div class="row"><button class="stop" data-act="stop">■ Baigti</button>${pbtn}<button data-act="switch">⇄ Pusė</button><button data-act="edit">✎</button></div>
     </div>`;
   }
   const lbl = e.t==="sleep" ? `😴 ${e.d?.k==="night"?"Nakties miegas":"Pogulis"}` : "🥛 Pieno nutraukimas";
-  return `<div class="run ${e.t}" data-id="${e.id}">
+  return `<div class="run ${e.t} ${P?"paused":""}" data-id="${e.id}">
     <div class="lbl">${lbl}</div>
-    <div class="big tick" data-s="${e.s}">${clock(Date.now()-e.s)}</div>
+    <div class="big tick" data-id="${e.id}">${clock(activeMs(e))}</div>
     <div class="sub">${since}</div>
-    <div class="row"><button class="stop" data-act="stop">■ ${e.t==="sleep"?"Pabudo":"Baigti"}</button><button data-act="edit">Taisyti</button></div>
+    <div class="row"><button class="stop" data-act="stop">■ ${e.t==="sleep"&&!P?"Pabudo":"Baigti"}</button>${pbtn}<button data-act="edit">Taisyti</button></div>
   </div>`;
 }
 function renderHome(){
   const now = Date.now(), run = running(), t0 = dayStart(now), s = dayStats(t0);
-  const sleeping = run.find(e=>e.t==="sleep");
-  const lf = lastOf("feed"), ls = lastOf("sleep", e=>e.e), lp = lastOf("pump");
+  const sleepRun = run.find(e=>e.t==="sleep"), sleeping = sleepRun && !paused(sleepRun) ? sleepRun : null;
+  const lf = lastOf("feed"), lsx = lastOf("sleep", e=>e.e), lp = lastOf("pump");
+  const ls = sleepRun && paused(sleepRun) ? {e:sleepRun.d.p} : lsx;
   const a = age();
   let h = run.map(runCard).join("");
 
   h += `<div class="quick">
     <button class="q feed" data-q="feed"><span class="ic">🍼</span>Maitinimas</button>
-    <button class="q sleep ${sleeping?"active":""}" data-q="sleep"><span class="ic">${sleeping?"☀️":"😴"}</span>${sleeping?"Pabudo":"Miegas"}</button>
+    <button class="q sleep ${sleepRun?"active":""}" data-q="sleep"><span class="ic">${sleeping?"☀️":"😴"}</span>${sleeping?"Pabudo":sleepRun?"Miegas ⏸":"Miegas"}</button>
     <button class="q pump" data-q="pump"><span class="ic">🥛</span>Nutraukimas</button>
     <button class="q diaper" data-q="diaper"><span class="ic">🧷</span>Sauskelnės</button>
   </div>`;
@@ -544,7 +566,7 @@ function renderHome(){
       <div class="d">${lf ? (lf.e==null?"vyksta · ":"")+feedDesc : "dar nepažymėta"}</div></div>
     <div class="card"><div class="k">${sleeping?"Miega jau":"Budri jau"}</div>
       <div class="v">${sleeping ? `<span class="ago" data-t="${sleeping.s}">${dur(now-sleeping.s)}</span>` : ls ? `<span class="ago" data-t="${ls.e}">${dur(now-ls.e)}</span>` : "—"}</div>
-      <div class="d">${sleeping ? `nuo ${hm(sleeping.s)}` : ls ? `pabudo ${hm(ls.e)}` : "miegas nepažymėtas"}</div></div>
+      <div class="d">${sleeping ? `nuo ${hm(sleeping.s)}` : ls ? `pabudo ${hm(ls.e)}${sleepRun?" · miegas pristabdytas":""}` : "miegas nepažymėtas"}</div></div>
   </div>`;
   if(lp) h += `<div class="card small" style="margin-top:8px">🥛 Paskutinis nutraukimas prieš <b class="ago" data-t="${lp.e||lp.s}">${dur(now-(lp.e||lp.s))}</b> · ${pumpMl(lp)} ml</div>`;
 
@@ -583,10 +605,10 @@ function pumpMl(p){ return (+p.d?.l||0)+(+p.d?.r||0)+(+p.d?.ml||0); }
 function dayBar(d0){
   const d1 = addDays(d0,1), now = Date.now(), L = list(), pct = t => ((t-d0)/DAY*100).toFixed(2);
   let h = "";
-  L.filter(e=>e.t==="sleep" && inRange(e,d0,d1)>0).forEach(e=>{
-    const a = Math.max(e.s,d0), b = Math.min(e.e??now, d1);
+  L.filter(e=>e.t==="sleep" && inRange(e,d0,d1)>0).forEach(e=> segs(e).forEach(([x,y])=>{
+    const a = Math.max(x,d0), b = Math.min(y, d1); if(b<=a) return;
     h += `<div class="blk" style="left:${pct(a)}%;width:${((b-a)/DAY*100).toFixed(2)}%"></div>`;
-  });
+  }));
   L.filter(e=>e.t!=="sleep" && e.s>=d0 && e.s<d1).forEach(e=> h += `<div class="mk ${e.t}" style="left:${pct(e.s)}%"></div>`);
   return `<div class="daybar">${h}</div><div class="hours"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>`;
 }
@@ -602,8 +624,9 @@ function describe(e){
     if(d.m==="bottle") return {t:"Buteliukas", d:`${d.ml||"?"} ml · ${d.milk==="formula"?"mišinys":"motinos pienas"}`};
     return {t:"Papildomas maistas", d:d.food||""};
   }
-  if(e.t==="sleep") return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:e.e?dur(e.e-e.s):"vyksta"};
-  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e?` · ${dur(e.e-e.s)}`:""}`};
+  if(e.t==="sleep"){ const pz = pauseMs(e), n = pauses(e).length;
+    return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
+  if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:""}${e.e?` · ${dur(activeMs(e))}`:""}`};
   if(e.t==="diaper") return {t:"Sauskelnės", d:[d.w?"šlapios":"", d.p?"purvinos":""].filter(Boolean).join(" ir ")||"sausos"};
   return {t:e.t, d:""};
 }
@@ -727,7 +750,8 @@ function render(){
 }
 function tick(){
   const now = Date.now();
-  document.querySelectorAll(".tick").forEach(el => el.textContent = clock(now - +el.dataset.s));
+  document.querySelectorAll(".tick").forEach(el => { const e = entries[el.dataset.id]; if(e) el.textContent = clock(activeMs(e)); });
+  document.querySelectorAll(".ptick").forEach(el => el.textContent = clock(now - +el.dataset.p));
   document.querySelectorAll(".ago").forEach(el => el.textContent = dur(now - +el.dataset.t));
   document.querySelectorAll(".run.feed").forEach(c => { const e = entries[c.dataset.id]; if(!e) return; const bt = breastTimes(e);
     c.querySelector(".tickL").textContent = clock(bt.l); c.querySelector(".tickR").textContent = clock(bt.r); });
@@ -746,21 +770,58 @@ function startFeed(side){
 }
 function switchSide(e){
   const now = Date.now(), d = e.d;
+  if(paused(e)){ d.side = d.side==="L" ? "R" : "L"; put(e); return; }
   if(d.side==="L") d.l = (+d.l||0) + (now - d.ss); else d.r = (+d.r||0) + (now - d.ss);
   d.side = d.side==="L" ? "R" : "L"; d.ss = now; put(e);
 }
-function stopEntry(e){
-  const now = Date.now();
+function accSide(e, now){ // fold the running side's time into l/r
   if(e.t==="feed" && e.d?.m==="breast" && e.d.ss){
     if(e.d.side==="L") e.d.l = (+e.d.l||0) + (now - e.d.ss); else e.d.r = (+e.d.r||0) + (now - e.d.ss);
     delete e.d.ss;
   }
-  e.e = now; put(e); return e;
 }
-function startSleep(){
-  const h = new Date().getHours();
-  put({id:uid(), t:"sleep", s:Date.now(), e:null, d:{k:(h>=19||h<6)?"night":"nap"}});
+function stopEntry(e){
+  const now = Date.now();
+  if(paused(e)){ e.e = e.d.p; delete e.d.p; }   // stopped during a pause → it ended when the pause began
+  else { accSide(e, now); e.e = now; }
+  put(e); return e;
+}
+function pauseEntry(e){ if(paused(e)) return; const now = Date.now(); accSide(e, now); e.d.p = now; put(e);
+  toast(e.t==="sleep" ? "Pauzė – jei vėl užmigs, spauskite „Vėl užmigo“" : "Pauzė"); }
+function resumeEntry(e){ if(!paused(e)) return; const now = Date.now(); e.d.pl = (e.d.pl||[]).concat([[e.d.p, now]]); delete e.d.p;
+  if(e.t==="feed" && e.d.m==="breast") e.d.ss = now; put(e); }
+function startSleep(at, k){
+  put({id:uid(), t:"sleep", s:at||Date.now(), e:null, d:{k}});
   toast("Saldžių sapnų 🌙");
+}
+function sleepSheet(){
+  const run = running().find(e=>e.t==="sleep");
+  if(run){
+    const P = paused(run);
+    openSheet(`<h3>${P?"Miegas pristabdytas":"Miega jau "+dur(activeMs(run))}</h3><div class="big-opts">
+      ${P ? `<button class="opt sug" data-z="resume">▶ Vėl užmigo<span>tęsti tą patį miegą</span></button>
+             <button class="opt" data-z="stop">■ Baigti miegą<span>pabudo ${hm(run.d.p)}</span></button>`
+          : `<button class="opt" data-z="stop">☀️ Pabudo<span>baigti miegą dabar</span></button>
+             <button class="opt" data-z="pause">⏸ Pauzė<span>prabudo, bet gal dar užmigs</span></button>`}
+      <button class="opt wide" data-z="edit">✎ Taisyti laikus</button></div>`);
+    $("#sheet").onclick = ev => { const b = ev.target.closest("[data-z]"); if(!b) return; const z = b.dataset.z;
+      if(z==="edit"){ editSheet(run); return; }
+      closeSheet();
+      if(z==="resume") resumeEntry(run);
+      if(z==="pause") pauseEntry(run);
+      if(z==="stop"){ stopEntry(run); toast(`Miegojo ${dur(activeMs(run))}`); } };
+    return;
+  }
+  const h = new Date().getHours(); let k = (h>=19||h<6) ? "night" : "nap", ago = 0;
+  openSheet(`<h3>Miegas</h3>
+    <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
+    <label class="f">Užmigo</label><div class="seg" id="zAgo"><button data-v="0" class="on">Dabar</button><button data-v="5">−5 min.</button><button data-v="10">−10 min.</button><button data-v="15">−15 min.</button></div>
+    <div class="btns"><button class="btn pri" id="zStart">▶ Pradėti laikmatį</button></div>
+    <div class="btns"><button class="btn" id="zPast">✎ Įrašyti praėjusį miegą</button></div>`);
+  const sh = $("#sheet");
+  sh.onclick = ev => { const b = ev.target.closest(".seg button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); };
+  $("#zStart").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; ago = +sh.querySelector("#zAgo .on").dataset.v; closeSheet(); startSleep(Date.now()-ago*MIN, k); };
+  $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; editSheet({id:uid(), t:"sleep", s:Date.now()-60*MIN, e:Date.now(), d:{k}}, true); };
 }
 function startPump(){ put({id:uid(), t:"pump", s:Date.now(), e:null, d:{l:"",r:""}}); toast("Nutraukimas pradėtas"); }
 function diaper(w,p){ put({id:uid(), t:"diaper", s:Date.now(), e:Date.now(), d:{w,p}}); toast("Sauskelnės pažymėtos"); }
@@ -860,6 +921,7 @@ function editSheet(e, isNew){
     if(e.t==="pump"){ d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; }
     if(e.t==="diaper"){ d.w = $("#xW").checked; d.p = $("#xP").checked; }
     e.n = $("#xN").value.trim();
+    if(d.pl){ const end = e.e ?? Date.now(); d.pl = d.pl.map(([a,b])=>[Math.max(a,e.s), Math.min(b,end)]).filter(([a,b])=>b>a); }
     closeSheet(); put(e); toast("Išsaugota");
   };
 }
@@ -919,7 +981,7 @@ document.addEventListener("click", ev => {
   const q = ev.target.closest("[data-q]");
   if(q){ const t = q.dataset.q;
     if(t==="feed") feedSheet();
-    if(t==="sleep"){ const s = running().find(e=>e.t==="sleep"); if(s){ stopEntry(s); toast(`Miegojo ${dur(s.e-s.s)}`); } else startSleep(); }
+    if(t==="sleep") sleepSheet();
     if(t==="pump"){ const p = running().find(e=>e.t==="pump"); if(p){ stopEntry(p); editSheet(p); } else pumpSheet(); }
     if(t==="diaper") diaperSheet();
     return; }
@@ -928,7 +990,9 @@ document.addEventListener("click", ev => {
     if(a==="stop"){ stopEntry(e);
       if(e.t==="pump") editSheet(e);
       else if(e.t==="feed"){ const bt = breastTimes(e); toast(`Maitinimas: ${dur(bt.tot)}${bt.l&&bt.r?` (K ${dur(bt.l)}, D ${dur(bt.r)})`:""}`); }
-      else toast(`Miegojo ${dur(e.e-e.s)}`); }
+      else toast(`Miegojo ${dur(activeMs(e))}`); }
+    if(a==="pause") pauseEntry(e);
+    if(a==="resume") resumeEntry(e);
     if(a==="switch") switchSide(e);
     if(a==="edit") editSheet(e);
     return; }
