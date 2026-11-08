@@ -29,6 +29,7 @@ public class RefreshJob extends JobService {
         new Thread(() -> {
             Updater.fetch(app);
             Updater.drawAll(app);
+            if (!LiveService.running) LiveService.start(app);
             schedule(app, INTERVAL);
             jobFinished(p, false);
         }).start();

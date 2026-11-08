@@ -36,15 +36,24 @@ public class ConfigActivity extends Activity {
             connect(t);
         });
         final android.widget.Switch sw = new android.widget.Switch(this);
-        sw.setText("Rodyti miego laikmatį pranešimuose ir užrakinimo ekrane");
+        sw.setText("Miego laikmatis pranešimuose ir užrakinimo ekrane + atnaujinimas kas minutę");
         sw.setTextSize(15); sw.setPadding(0, pad, 0, pad / 2);
         sw.setChecked(Store.notify(this));
         sw.setOnCheckedChangeListener((b2, on) -> {
             Store.setNotify(this, on);
-            if (on) askNotify();
+            if (on) { askNotify(); LiveService.start(this); } else LiveService.stop(this);
             Notifier.update(this);
         });
-        root.addView(title); root.addView(msg); root.addView(sw); root.addView(help); root.addView(in); root.addView(paste);
+        Button batt = new Button(this); batt.setText("Leisti veikti fone (rekomenduojama)");
+        batt.setOnClickListener(v -> {
+            try {
+                android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
+                if (pm != null && pm.isIgnoringBatteryOptimizations(getPackageName())) { msg.setText("✓ Jau leidžiama veikti fone."); return; }
+                startActivity(new android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        android.net.Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) { startActivity(new android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
+        });
+        root.addView(title); root.addView(msg); root.addView(sw); root.addView(batt); root.addView(help); root.addView(in); root.addView(paste);
         setContentView(root);
         if (Store.notify(this)) askNotify();
 
@@ -54,6 +63,7 @@ public class ConfigActivity extends Activity {
             if (Store.configured(this)) {
                 final android.content.Context app = getApplicationContext();
                 new Thread(() -> { Updater.fetch(app); Updater.drawAll(app); RefreshJob.schedule(app, RefreshJob.INTERVAL); }).start();
+                LiveService.start(this);
             }
         }
     }
@@ -64,6 +74,7 @@ public class ConfigActivity extends Activity {
     }
     @Override public void onRequestPermissionsResult(int rc, String[] p, int[] r) {
         final android.content.Context app = getApplicationContext();
+        LiveService.start(this);
         new Thread(() -> { Updater.fetch(app); Updater.drawAll(app); }).start();
     }
 
@@ -72,6 +83,7 @@ public class ConfigActivity extends Activity {
             msg.setText("✓ Prijungta! Valdiklis atsinaujins per kelias sekundes.");
             final android.content.Context app = getApplicationContext();
             new Thread(() -> { Updater.fetch(app); Updater.drawAll(app); RefreshJob.schedule(app, RefreshJob.INTERVAL); }).start();
+            LiveService.start(this);
         } else msg.setText("Nepavyko perskaityti nuorodos. Patikrinkite, ar nukopijavote visą Liepos bendrinimo nuorodą.");
     }
     private void showState() {
