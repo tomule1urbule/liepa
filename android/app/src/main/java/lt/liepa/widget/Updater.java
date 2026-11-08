@@ -58,6 +58,7 @@ final class Updater {
         AppWidgetManager m = AppWidgetManager.getInstance(c);
         int[] ids = m.getAppWidgetIds(new ComponentName(c, LiepaWidget.class));
         for (int id : ids) m.updateAppWidget(id, build(c));
+        Notifier.update(c);
     }
 
     static RemoteViews build(Context c) {

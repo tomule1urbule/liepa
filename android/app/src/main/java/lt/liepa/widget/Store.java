@@ -32,6 +32,8 @@ final class Store {
             return true;
         } catch (Exception e) { return false; }
     }
+    static boolean notify(Context c) { return prefs(c).getBoolean("notify", true); }
+    static void setNotify(Context c, boolean on) { prefs(c).edit().putBoolean("notify", on).apply(); }
     static void saveStatus(Context c, String json) { prefs(c).edit().putString("status", json).putLong("fetched", System.currentTimeMillis()).apply(); }
     static JSONObject status(Context c) {
         try { String s = prefs(c).getString("status", null); return s == null ? null : new JSONObject(s); } catch (Exception e) { return null; }

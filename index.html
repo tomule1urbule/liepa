@@ -1415,7 +1415,7 @@ const APK_URL = "https://github.com/tomule1urbule/liepa/releases/latest/download
 function pairB64(){ return btoa(unescape(encodeURIComponent(JSON.stringify({u:cfg.url,k:cfg.key})))); }
 function scriptableCode(){
   const url = `${cfg.url}?status=1&key=${encodeURIComponent(cfg.key)}`;
-  return `// Liepa valdiklis – Scriptable
+  return `// Liepa valdiklis – Scriptable (pagrindinis ir užrakinimo ekranas)
 const STATUS = ${JSON.stringify(url)};
 const APP = "https://tomule1urbule.github.io/liepa/";
 let s = null;
@@ -1423,28 +1423,51 @@ try { s = await new Request(STATUS).loadJSON(); Keychain.set("liepa_status", JSO
 catch (e) { if (Keychain.contains("liepa_status")) s = JSON.parse(Keychain.get("liepa_status")); }
 const df = new DateFormatter(); df.dateFormat = "HH:mm";
 const sleeping = !!s && s.state === "sleep";
+const name = s ? s.name : "Liepa";
+const fam = config.widgetFamily || "small";
 const w = new ListWidget();
 w.url = APP;
 w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
-w.backgroundColor = sleeping ? new Color("#4f5fa6") : new Color("#fffdf9");
-const ink = sleeping ? Color.white() : new Color("#2a2622");
-const muted = sleeping ? new Color("#dde2f5") : new Color("#7c7268");
-const feedCol = sleeping ? new Color("#ffd9b8") : new Color("#b8662a");
-const name = s ? s.name : "Liepa";
-const t = w.addText(s ? (sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi") : "Liepa");
-t.font = Font.boldSystemFont(14); t.textColor = ink;
-if (s && s.since) {
-  const d = w.addDate(new Date(s.since)); d.applyTimerStyle();
-  d.font = Font.boldRoundedSystemFont(34); d.textColor = ink;
-  const sub = w.addText((sleeping ? "užmigo " : "pabudo ") + df.string(new Date(sleeping ? (s.startedAt || s.since) : s.since)));
-  sub.font = Font.systemFont(11); sub.textColor = muted;
-}
-w.addSpacer(6);
-if (s && s.lastFeedAt) {
-  const l = w.addText("🍼 Valgė prieš · " + (s.lastFeedText || ""));
-  l.font = Font.systemFont(11); l.textColor = feedCol;
-  const f = w.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle();
-  f.font = Font.boldSystemFont(15); f.textColor = feedCol;
+
+if (fam === "accessoryInline") {
+  // one line above the clock on the lock screen
+  const img = w.addImage(SFSymbol.named(sleeping ? "moon.zzz.fill" : "sun.max.fill").image);
+  if (s && s.since) { const d = w.addDate(new Date(s.since)); d.applyTimerStyle(); }
+  else w.addText(name);
+} else if (fam === "accessoryCircular") {
+  w.addAccessoryWidgetBackground = true;
+  const st = w.addStack(); st.layoutVertically(); st.centerAlignContent();
+  const i = st.addImage(SFSymbol.named(sleeping ? "moon.zzz.fill" : "sun.max.fill").image); i.imageSize = new Size(16, 16); i.centerAlignImage();
+  if (s && s.since) { const d = st.addDate(new Date(s.since)); d.applyTimerStyle(); d.font = Font.boldRoundedSystemFont(12); d.centerAlignText(); d.minimumScaleFactor = 0.5; }
+} else if (fam === "accessoryRectangular") {
+  const t = w.addText((sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi"));
+  t.font = Font.boldSystemFont(13);
+  if (s && s.since) { const d = w.addDate(new Date(s.since)); d.applyTimerStyle(); d.font = Font.boldRoundedSystemFont(22); }
+  if (s && s.lastFeedAt) {
+    const st = w.addStack(); st.centerAlignContent();
+    const l = st.addText("🍼 "); l.font = Font.systemFont(12);
+    const f = st.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle(); f.font = Font.systemFont(12);
+  }
+} else {
+  w.backgroundColor = sleeping ? new Color("#4f5fa6") : new Color("#fffdf9");
+  const ink = sleeping ? Color.white() : new Color("#2a2622");
+  const muted = sleeping ? new Color("#dde2f5") : new Color("#7c7268");
+  const feedCol = sleeping ? new Color("#ffd9b8") : new Color("#b8662a");
+  const t = w.addText(s ? (sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi") : "Liepa");
+  t.font = Font.boldSystemFont(14); t.textColor = ink;
+  if (s && s.since) {
+    const d = w.addDate(new Date(s.since)); d.applyTimerStyle();
+    d.font = Font.boldRoundedSystemFont(34); d.textColor = ink;
+    const sub = w.addText((sleeping ? "užmigo " : "pabudo ") + df.string(new Date(sleeping ? (s.startedAt || s.since) : s.since)));
+    sub.font = Font.systemFont(11); sub.textColor = muted;
+  }
+  w.addSpacer(6);
+  if (s && s.lastFeedAt) {
+    const l = w.addText("🍼 Valgė prieš · " + (s.lastFeedText || ""));
+    l.font = Font.systemFont(11); l.textColor = feedCol;
+    const f = w.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle();
+    f.font = Font.boldSystemFont(15); f.textColor = feedCol;
+  }
 }
 if (config.runsInWidget) Script.setWidget(w); else await w.presentSmall();
 Script.complete();
@@ -1456,13 +1479,15 @@ function widgetSheet(){
       <li><button class="link" id="wApk">⬇ Atsisiųskite „Liepa valdiklis“ (APK)</button> – atsidarys Chrome. Jei Chrome įspės dėl failo, spauskite <b>„Vis tiek atsisiųsti“</b>, tada atidarykite failą iš pranešimo arba <b>Mano failai → Atsisiuntimai</b>. Telefonas paklaus leidimo diegti – leiskite (vienkartinis).
         <div class="muted small" style="margin-top:4px">Neveikia? Nukopijuokite nuorodą ir atidarykite ją Chrome: <button class="link" id="wApkCopy">kopijuoti nuorodą</button></div></li>
       <li>Grįžę čia spauskite <b>„Prijungti valdiklį“</b> – valdiklis gaus prieigą prie Liepos duomenų.</li>
-      <li>Ilgai paspauskite tuščią vietą pagrindiniame ekrane → <b>Valdikliai</b> → <b>Liepa valdiklis</b> → nutempkite į ekraną.</li></ol>
+      <li>Ilgai paspauskite tuščią vietą pagrindiniame ekrane → <b>Valdikliai</b> → <b>Liepa valdiklis</b> → nutempkite į ekraną.</li>
+      <li>Kol Liepa miega, <b>pranešimų juostoje ir užrakinimo ekrane</b> rodomas pranešimas su gyvu miego laikmačiu (pabudus išnyksta). Pirmą kartą atidarius „Liepa valdiklis“, leiskite rodyti pranešimus.</li></ol>
       <div class="btns"><button class="btn pri" id="wConnect">🔗 Prijungti valdiklį</button></div>`;
   const iosHtml = `<h3 style="margin-top:14px">🍎 iPhone</h3><ol class="steps">
       <li>App Store įdiekite nemokamą programėlę <b>Scriptable</b>.</li>
       <li>Spauskite <b>„Kopijuoti iPhone valdiklio kodą“</b> žemiau.</li>
       <li>Scriptable → <b>＋</b> → įklijuokite kodą → viršuje pavadinkite „Liepa“ → <b>Done</b>.</li>
-      <li>Ilgai paspauskite pagrindinį ekraną → <b>＋</b> → <b>Scriptable</b> → mažas valdiklis → <b>Add</b>. Tada bakstelėkite valdiklį (redagavimo režime) → <b>Script: Liepa</b>.</li></ol>
+      <li>Ilgai paspauskite pagrindinį ekraną → <b>＋</b> → <b>Scriptable</b> → mažas valdiklis → <b>Add</b>. Tada bakstelėkite valdiklį (redagavimo režime) → <b>Script: Liepa</b>.</li>
+      <li><b>Užrakinimo ekrane:</b> užrakinkite telefoną, ilgai paspauskite ekraną → <b>Customize</b> → <b>Lock Screen</b> → bakstelėkite laukelį virš laikrodžio arba po juo → <b>Scriptable</b> → pasirinkite valdiklį → bakstelėkite jį → <b>Script: Liepa</b>. Virš laikrodžio matysis 🌙 ir miego laikmatis.</li></ol>
       <div class="btns"><button class="btn ${ios?"pri":""}" id="wCopy">📋 Kopijuoti iPhone valdiklio kodą</button></div>
       <div class="muted small" style="margin-top:6px">Jei telefonas yra kito tėvo – nusiųskite jam šią instrukciją arba atidarykite Liepą jo telefone.</div>`;
   openSheet(`<h3>Valdiklis pradžios ekrane</h3>

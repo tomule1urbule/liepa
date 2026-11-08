@@ -35,11 +35,36 @@ public class ConfigActivity extends Activity {
             if (t.isEmpty() && cd != null && cd.getItemCount() > 0) t = String.valueOf(cd.getItemAt(0).coerceToText(this));
             connect(t);
         });
-        root.addView(title); root.addView(msg); root.addView(help); root.addView(in); root.addView(paste);
+        final android.widget.Switch sw = new android.widget.Switch(this);
+        sw.setText("Rodyti miego laikmatį pranešimuose ir užrakinimo ekrane");
+        sw.setTextSize(15); sw.setPadding(0, pad, 0, pad / 2);
+        sw.setChecked(Store.notify(this));
+        sw.setOnCheckedChangeListener((b2, on) -> {
+            Store.setNotify(this, on);
+            if (on) askNotify();
+            Notifier.update(this);
+        });
+        root.addView(title); root.addView(msg); root.addView(sw); root.addView(help); root.addView(in); root.addView(paste);
         setContentView(root);
+        if (Store.notify(this)) askNotify();
 
         if (getIntent() != null && getIntent().getData() != null) connect(getIntent().getData().toString());
-        else showState();
+        else {
+            showState();
+            if (Store.configured(this)) {
+                final android.content.Context app = getApplicationContext();
+                new Thread(() -> { Updater.fetch(app); Updater.drawAll(app); RefreshJob.schedule(app, RefreshJob.INTERVAL); }).start();
+            }
+        }
+    }
+
+    private void askNotify() {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !Notifier.allowed(this))
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 7);
+    }
+    @Override public void onRequestPermissionsResult(int rc, String[] p, int[] r) {
+        final android.content.Context app = getApplicationContext();
+        new Thread(() -> { Updater.fetch(app); Updater.drawAll(app); }).start();
     }
 
     private void connect(String link) {

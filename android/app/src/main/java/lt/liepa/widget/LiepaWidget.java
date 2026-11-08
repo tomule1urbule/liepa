@@ -13,7 +13,7 @@ public class LiepaWidget extends AppWidgetProvider {
         refreshAsync(c);
     }
     @Override public void onEnabled(Context c) { RefreshJob.schedule(c, 1000); }
-    @Override public void onDisabled(Context c) { RefreshJob.cancel(c); }
+    @Override public void onDisabled(Context c) { if (!Store.notify(c)) RefreshJob.cancel(c); }
 
     @Override public void onReceive(Context c, Intent i) {
         super.onReceive(c, i);
