@@ -43,6 +43,7 @@ header .age{color:var(--muted);font-size:13.5px}
 .instbtn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;height:36px;padding:0 10px;font-weight:700;font-size:12px;white-space:nowrap;flex:none}
 header .age{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 ol.steps{margin:6px 0 0;padding-left:22px}ol.steps li{padding:6px 0}
+.pend{font-size:12.5px;font-weight:600;color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--card));border-radius:10px;padding:6px 10px;margin-bottom:4px}
 .sync{width:10px;height:10px;border-radius:50%;background:var(--muted);opacity:.5;flex:none}
 .sync.ok{background:var(--good);opacity:1}.sync.busy{background:var(--sleep);opacity:1;animation:pulse 1s infinite}.sync.err{background:var(--warn);opacity:1}
 @keyframes pulse{50%{opacity:.3}}
@@ -305,6 +306,7 @@ code.k{font-size:12px;background:var(--soft);padding:2px 6px;border-radius:6px;w
     <button class="instbtn hide" id="instBtn">⬇ Atsisiųsti App</button>
     <button class="iconbtn" id="setBtn" aria-label="Nustatymai">⚙︎</button>
   </header>
+  <div class="pend hide" id="pendTxt"></div>
 
   <main id="pg-home"></main>
   <main id="pg-growth" class="hide"></main>
@@ -1506,14 +1508,24 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
    Sync (Google Sheet via Apps Script)
    ========================================================= */
 let syncing = false, syncState = "", again = false;
-function setSync(s){ syncState = s; $("#syncDot").className = "sync " + (cfg.url ? s : ""); }
+function setSync(s){
+  syncState = s; const off = !navigator.onLine;
+  $("#syncDot").className = "sync " + (cfg.url ? (off ? "err" : s) : "");
+  const n = queue.length, el = $("#pendTxt");
+  el.classList.toggle("hide", !cfg.url || (!off && s!=="err") || !n);
+  el.textContent = off ? `📴 Nėra interneto – ${n} ${pl(n,["įrašas išsaugotas","įrašai išsaugoti","įrašų išsaugota"])} telefone, bus išsiųsta prisijungus` : `⚠︎ ${n} ${pl(n,["įrašas laukia","įrašai laukia","įrašų laukia"])} sinchronizacijos`;
+  el.title = "Įrašai saugomi telefone ir bus išsiųsti, kai atsiras internetas";
+}
 async function sync(){
   if(!cfg.url) return;
   if(syncing){ again = true; return; }
   syncing = true; setSync("busy");
   try{
     const ids = queue.slice(); const items = ids.map(id=>entries[id]).filter(Boolean);
-    const res = await fetch(cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:cfg.key, items, since})});
+    if(!navigator.onLine) throw new Error("offline");
+    const ctl = new AbortController(), to = setTimeout(()=>ctl.abort(), 30000);
+    const res = await fetch(cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({key:cfg.key, items, since}), signal: ctl.signal});
+    clearTimeout(to);
     const j = await res.json();
     if(!j.ok) throw new Error(j.error||"error");
     queue = queue.filter(id => !ids.includes(id) || (entries[id] && entries[id].u > (items.find(x=>x.id===id)?.u||0)));
@@ -1534,7 +1546,11 @@ async function sync(){
 }
 setInterval(() => { if(document.visibilityState==="visible") sync(); }, 15000);
 document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible"){ sync(); render(); } });
-addEventListener("online", sync);
+addEventListener("online", () => { setSync(syncState); sync(); });
+addEventListener("offline", () => setSync(syncState));
+if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
+  if(ev.data?.type==="updated") toast("Yra nauja programėlės versija", "Atnaujinti", () => location.reload());
+});
 
 /* =========================================================
    Boot
