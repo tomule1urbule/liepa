@@ -1376,6 +1376,9 @@ function settingsSheet(){
     ${cfg.url?`<div class="btns"><button class="btn" id="sShare">🔗 Bendrinti su partneriu</button></div>
       <div class="muted small" style="margin-top:6px">Atsiųskite šią nuorodą antram telefonui – ją atidarius sinchronizacija įsijungs automatiškai.</div>`:""}
     ${isStandalone()?"":`<div class="btns"><button class="btn pri" id="sInstall">⬇ Atsisiųsti App</button></div>`}
+    ${cfg.url?`<h3 style="margin-top:22px">📱 Valdiklis pradžios ekrane</h3>
+    <div class="muted small">Miego / budrumo laikmatis ir laikas nuo maitinimo – matosi neatidarius programėlės.</div>
+    <div class="btns"><button class="btn" id="sWidget">Įdiegti valdiklį</button></div>`:""}
     <div class="btns"><button class="btn" id="sExport">⬇ Atsisiųsti duomenis</button><button class="btn" id="sImport">⬆ Importuoti</button></div>
     <input type="file" id="sFile" accept=".json,application/json" class="hide">
     <div class="btns"><button class="btn" id="sCancel">Uždaryti</button><button class="btn pri" id="sSave">Išsaugoti</button></div>
@@ -1388,6 +1391,7 @@ function settingsSheet(){
     try{ await navigator.clipboard.writeText(url); toast("Nuoroda nukopijuota"); }catch(e){ prompt("Nukopijuokite nuorodą:", url); } };
   $("#sExport").onclick = () => { const blob = new Blob([JSON.stringify(Object.values(entries),null,1)],{type:"application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `liepa-${toInput(Date.now()).slice(0,10)}.json`; a.click(); };
+  if($("#sWidget")) $("#sWidget").onclick = () => widgetSheet();
   if($("#sInstall")) $("#sInstall").onclick = () => { closeSheet(); installApp(); };
   $("#sImport").onclick = () => $("#sFile").click();
   $("#sFile").onchange = async ev => { const f = ev.target.files[0]; if(!f) return;
@@ -1405,6 +1409,74 @@ function settingsSheet(){
     if(url!==cfg.url || key!==cfg.key){ cfg = {url, key}; LS.set("lp_cfg", cfg); since = 0; LS.set("lp_since", 0); queue = Object.keys(entries); saveLocal(); }
     closeSheet(); sync(true);
   };
+}
+/* ---------- home-screen widget setup ---------- */
+const APK_URL = "https://github.com/tomule1urbule/liepa/releases/latest/download/liepa-widget.apk";
+function pairB64(){ return btoa(unescape(encodeURIComponent(JSON.stringify({u:cfg.url,k:cfg.key})))); }
+function scriptableCode(){
+  const url = `${cfg.url}?status=1&key=${encodeURIComponent(cfg.key)}`;
+  return `// Liepa valdiklis – Scriptable
+const STATUS = ${JSON.stringify(url)};
+const APP = "https://tomule1urbule.github.io/liepa/";
+let s = null;
+try { s = await new Request(STATUS).loadJSON(); Keychain.set("liepa_status", JSON.stringify(s)); }
+catch (e) { if (Keychain.contains("liepa_status")) s = JSON.parse(Keychain.get("liepa_status")); }
+const df = new DateFormatter(); df.dateFormat = "HH:mm";
+const sleeping = !!s && s.state === "sleep";
+const w = new ListWidget();
+w.url = APP;
+w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
+w.backgroundColor = sleeping ? new Color("#4f5fa6") : new Color("#fffdf9");
+const ink = sleeping ? Color.white() : new Color("#2a2622");
+const muted = sleeping ? new Color("#dde2f5") : new Color("#7c7268");
+const feedCol = sleeping ? new Color("#ffd9b8") : new Color("#b8662a");
+const name = s ? s.name : "Liepa";
+const t = w.addText(s ? (sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi") : "Liepa");
+t.font = Font.boldSystemFont(14); t.textColor = ink;
+if (s && s.since) {
+  const d = w.addDate(new Date(s.since)); d.applyTimerStyle();
+  d.font = Font.boldRoundedSystemFont(34); d.textColor = ink;
+  const sub = w.addText((sleeping ? "užmigo " : "pabudo ") + df.string(new Date(sleeping ? (s.startedAt || s.since) : s.since)));
+  sub.font = Font.systemFont(11); sub.textColor = muted;
+}
+w.addSpacer(6);
+if (s && s.lastFeedAt) {
+  const l = w.addText("🍼 Valgė prieš · " + (s.lastFeedText || ""));
+  l.font = Font.systemFont(11); l.textColor = feedCol;
+  const f = w.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle();
+  f.font = Font.boldSystemFont(15); f.textColor = feedCol;
+}
+if (config.runsInWidget) Script.setWidget(w); else await w.presentSmall();
+Script.complete();
+`;
+}
+function widgetSheet(){
+  const android = /android/i.test(navigator.userAgent), ios = isIOS();
+  const andHtml = `<h3 style="margin-top:6px">🤖 Android</h3><ol class="steps">
+      <li><a class="link" href="${APK_URL}">⬇ Atsisiųskite „Liepa valdiklis“ (APK)</a> ir atidarykite failą. Telefonas paklaus leidimo diegti iš šio šaltinio – leiskite (vienkartinis).</li>
+      <li>Grįžę čia spauskite <b>„Prijungti valdiklį“</b> – valdiklis gaus prieigą prie Liepos duomenų.</li>
+      <li>Ilgai paspauskite tuščią vietą pagrindiniame ekrane → <b>Valdikliai</b> → <b>Liepa valdiklis</b> → nutempkite į ekraną.</li></ol>
+      <div class="btns"><button class="btn pri" id="wConnect">🔗 Prijungti valdiklį</button></div>`;
+  const iosHtml = `<h3 style="margin-top:14px">🍎 iPhone</h3><ol class="steps">
+      <li>App Store įdiekite nemokamą programėlę <b>Scriptable</b>.</li>
+      <li>Spauskite <b>„Kopijuoti iPhone valdiklio kodą“</b> žemiau.</li>
+      <li>Scriptable → <b>＋</b> → įklijuokite kodą → viršuje pavadinkite „Liepa“ → <b>Done</b>.</li>
+      <li>Ilgai paspauskite pagrindinį ekraną → <b>＋</b> → <b>Scriptable</b> → mažas valdiklis → <b>Add</b>. Tada bakstelėkite valdiklį (redagavimo režime) → <b>Script: Liepa</b>.</li></ol>
+      <div class="btns"><button class="btn ${ios?"pri":""}" id="wCopy">📋 Kopijuoti iPhone valdiklio kodą</button></div>
+      <div class="muted small" style="margin-top:6px">Jei telefonas yra kito tėvo – nusiųskite jam šią instrukciją arba atidarykite Liepą jo telefone.</div>`;
+  openSheet(`<h3>Valdiklis pradžios ekrane</h3>
+    <p class="muted small">Valdiklis rodo gyvą miego arba budrumo laikmatį ir kiek laiko praėjo nuo paskutinio maitinimo. Bakstelėjus jis atidaro Liepą. Duomenys atnaujinami kas kelias minutes.</p>
+    ${ios ? iosHtml + andHtml : andHtml + iosHtml}
+    <div class="btns"><button class="btn" id="wClose">Uždaryti</button></div>`);
+  $("#wClose").onclick = closeSheet;
+  $("#wConnect").onclick = () => {
+    const d = encodeURIComponent(pairB64());
+    if(android) location.href = `intent://config?d=${d}#Intent;scheme=liepawidget;package=lt.liepa.widget;S.browser_fallback_url=${encodeURIComponent(APK_URL)};end`;
+    else location.href = `liepawidget://config?d=${d}`;
+  };
+  $("#wCopy").onclick = async () => { const code = scriptableCode();
+    try{ await navigator.clipboard.writeText(code); toast("Kodas nukopijuotas ✓"); }
+    catch(e){ const ta = document.createElement("textarea"); ta.value = code; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("Kodas nukopijuotas ✓"); } };
 }
 function whoSheet(){
   openSheet(`<h3>Sveiki! 👋</h3><p>Kas naudos šį telefoną? Tai padės matyti, kas pažymėjo įrašą.</p>
