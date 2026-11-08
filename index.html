@@ -1453,7 +1453,8 @@ Script.complete();
 function widgetSheet(){
   const android = /android/i.test(navigator.userAgent), ios = isIOS();
   const andHtml = `<h3 style="margin-top:6px">🤖 Android</h3><ol class="steps">
-      <li><a class="link" href="${APK_URL}">⬇ Atsisiųskite „Liepa valdiklis“ (APK)</a> ir atidarykite failą. Telefonas paklaus leidimo diegti iš šio šaltinio – leiskite (vienkartinis).</li>
+      <li><button class="link" id="wApk">⬇ Atsisiųskite „Liepa valdiklis“ (APK)</button> – atsidarys Chrome. Jei Chrome įspės dėl failo, spauskite <b>„Vis tiek atsisiųsti“</b>, tada atidarykite failą iš pranešimo arba <b>Mano failai → Atsisiuntimai</b>. Telefonas paklaus leidimo diegti – leiskite (vienkartinis).
+        <div class="muted small" style="margin-top:4px">Neveikia? Nukopijuokite nuorodą ir atidarykite ją Chrome: <button class="link" id="wApkCopy">kopijuoti nuorodą</button></div></li>
       <li>Grįžę čia spauskite <b>„Prijungti valdiklį“</b> – valdiklis gaus prieigą prie Liepos duomenų.</li>
       <li>Ilgai paspauskite tuščią vietą pagrindiniame ekrane → <b>Valdikliai</b> → <b>Liepa valdiklis</b> → nutempkite į ekraną.</li></ol>
       <div class="btns"><button class="btn pri" id="wConnect">🔗 Prijungti valdiklį</button></div>`;
@@ -1469,6 +1470,12 @@ function widgetSheet(){
     ${ios ? iosHtml + andHtml : andHtml + iosHtml}
     <div class="btns"><button class="btn" id="wClose">Uždaryti</button></div>`);
   $("#wClose").onclick = closeSheet;
+  $("#wApk").onclick = () => {
+    // installed web apps can't save files – hand the download to the Chrome browser itself
+    if(android) location.href = `intent://${APK_URL.replace(/^https:\/\//,"")}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(APK_URL)};end`;
+    else window.open(APK_URL, "_blank");
+  };
+  $("#wApkCopy").onclick = async () => { try{ await navigator.clipboard.writeText(APK_URL); toast("Nuoroda nukopijuota"); }catch(e){ prompt("Nuoroda:", APK_URL); } };
   $("#wConnect").onclick = () => {
     const d = encodeURIComponent(pairB64());
     if(android) location.href = `intent://config?d=${d}#Intent;scheme=liepawidget;package=lt.liepa.widget;S.browser_fallback_url=${encodeURIComponent(APK_URL)};end`;
