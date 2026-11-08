@@ -28,7 +28,45 @@ function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doGet() { return out_({ ok: true, app: 'liepa' }); }
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.status) {
+    if (p.key !== KEY) return out_({ ok: false, error: 'unauthorized' });
+    return out_(status_());
+  }
+  return out_({ ok: true, app: 'liepa' });
+}
+
+/** Live status for home-screen widgets: sleeping/awake timer + last feed. */
+function status_() {
+  const sh = sheet_(), last = sh.getLastRow();
+  const rows = last > 1 ? sh.getRange(2, 2, last - 1, 1).getValues() : [];
+  let run = null, lastEnd = 0, feed = null, name = 'Liepa';
+  rows.forEach(r => {
+    let it; try { it = JSON.parse(r[0]); } catch (err) { return; }
+    if (!it || it.x) return;
+    if (it.t === 'cfg' && it.d && it.d.name) name = it.d.name;
+    if (it.t === 'sleep') {
+      if (it.e == null) { if (!run || it.s > run.s) run = it; }
+      else if (it.e > lastEnd) lastEnd = it.e;
+    }
+    if (it.t === 'feed' && (!feed || it.s > feed.s)) feed = it;
+  });
+  const now = Date.now(), out = { ok: true, now: now, name: name };
+  const d = (run && run.d) || {};
+  if (run && !d.p) {
+    const paused = (d.pl || []).reduce((t, x) => t + Math.max(0, x[1] - x[0]), 0);
+    out.state = 'sleep'; out.since = run.s + paused; out.startedAt = run.s; out.kind = d.k || 'nap';
+  } else {
+    out.state = 'awake'; out.since = (run && d.p) ? d.p : (lastEnd || null);
+  }
+  if (feed) {
+    const f = feed.d || {};
+    out.lastFeedAt = feed.s;
+    out.lastFeedText = f.m === 'bottle' ? (f.ml || '?') + ' ml' : f.m === 'breast' ? 'krūtimi' : 'košė';
+  }
+  return out;
+}
 
 function doPost(e) {
   let body;
