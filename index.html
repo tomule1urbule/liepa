@@ -1417,7 +1417,8 @@ function scriptableCode(){
   const url = `${cfg.url}?status=1&key=${encodeURIComponent(cfg.key)}`;
   return `// Liepa valdiklis – Scriptable (pagrindinis ir užrakinimo ekranas)
 const STATUS = ${JSON.stringify(url)};
-const APP = "https://tomule1urbule.github.io/liepa/";
+// iPhone can't open the home-screen web app from a widget, so the tap opens Safari already linked to your data
+const APP = ${JSON.stringify("https://tomule1urbule.github.io/liepa/#pair=" + pairB64())};
 let s = null;
 try { s = await new Request(STATUS).loadJSON(); Keychain.set("liepa_status", JSON.stringify(s)); }
 catch (e) { if (Keychain.contains("liepa_status")) s = JSON.parse(Keychain.get("liepa_status")); }
@@ -1449,24 +1450,27 @@ if (fam === "accessoryInline") {
     const f = st.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle(); f.font = Font.systemFont(12);
   }
 } else {
+  const big = fam === "medium" || fam === "large";
+  w.setPadding(12, 14, 12, 12);
   w.backgroundColor = sleeping ? new Color("#4f5fa6") : new Color("#fffdf9");
   const ink = sleeping ? Color.white() : new Color("#2a2622");
   const muted = sleeping ? new Color("#dde2f5") : new Color("#7c7268");
   const feedCol = sleeping ? new Color("#ffd9b8") : new Color("#b8662a");
-  const t = w.addText(s ? (sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi") : "Liepa");
-  t.font = Font.boldSystemFont(14); t.textColor = ink;
+  const fit = (el, n) => { el.lineLimit = 1; el.minimumScaleFactor = n || 0.5; return el; };
+  const t = fit(w.addText(s ? (sleeping ? "😴 " + name + " miega" : "☀️ " + name + " budi") : "Liepa"), 0.7);
+  t.font = Font.boldSystemFont(big ? 15 : 13); t.textColor = ink;
   if (s && s.since) {
-    const d = w.addDate(new Date(s.since)); d.applyTimerStyle();
-    d.font = Font.boldRoundedSystemFont(34); d.textColor = ink;
-    const sub = w.addText((sleeping ? "užmigo " : "pabudo ") + df.string(new Date(sleeping ? (s.startedAt || s.since) : s.since)));
-    sub.font = Font.systemFont(11); sub.textColor = muted;
+    const d = fit(w.addDate(new Date(s.since))); d.applyTimerStyle();
+    d.font = Font.boldRoundedSystemFont(big ? 38 : 28); d.textColor = ink;
+    const sub = fit(w.addText((sleeping ? "užmigo " : "pabudo ") + df.string(new Date(sleeping ? (s.startedAt || s.since) : s.since))), 0.7);
+    sub.font = Font.systemFont(big ? 12 : 10); sub.textColor = muted;
   }
-  w.addSpacer(6);
+  w.addSpacer();
   if (s && s.lastFeedAt) {
-    const l = w.addText("🍼 Valgė prieš · " + (s.lastFeedText || ""));
-    l.font = Font.systemFont(11); l.textColor = feedCol;
-    const f = w.addDate(new Date(s.lastFeedAt)); f.applyTimerStyle();
-    f.font = Font.boldSystemFont(15); f.textColor = feedCol;
+    const l = fit(w.addText("🍼 Valgė prieš" + (s.lastFeedText ? " · " + s.lastFeedText : "")), 0.7);
+    l.font = Font.systemFont(big ? 12 : 10); l.textColor = feedCol;
+    const f = fit(w.addDate(new Date(s.lastFeedAt))); f.applyTimerStyle();
+    f.font = Font.boldRoundedSystemFont(big ? 17 : 14); f.textColor = feedCol;
   }
 }
 if (config.runsInWidget) Script.setWidget(w); else await w.presentSmall();
@@ -1662,7 +1666,7 @@ if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("messa
 function pairFromHash(){
   const m = location.hash.match(/pair=([^&]+)/); if(!m) return false;
   try{ const p = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
-    if(p.u){ cfg = {url:p.u, key:p.k||""}; LS.set("lp_cfg", cfg); since = 0; LS.set("lp_since",0); queue = Object.keys(entries); saveLocal(); setTimeout(()=>toast("Sinchronizacija įjungta ✓"), 600); } }catch(e){}
+    if(p.u && (p.u!==cfg.url || (p.k||"")!==cfg.key)){ cfg = {url:p.u, key:p.k||""}; LS.set("lp_cfg", cfg); since = 0; LS.set("lp_since",0); queue = Object.keys(entries); saveLocal(); setTimeout(()=>toast("Sinchronizacija įjungta ✓"), 600); } }catch(e){}
   history.replaceState(null, "", location.pathname); return true;
 }
 addEventListener("hashchange", () => { if(pairFromHash()){ render(); sync(); } });
