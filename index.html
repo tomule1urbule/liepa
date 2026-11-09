@@ -1120,7 +1120,32 @@ function renderTips(){
 /* =========================================================
    Render all + ticking
    ========================================================= */
+/* Everything before 21:00 is a nap, from 21:00 night sleep: split any sleep that crosses 21:00.
+   Deterministic id for the night part, so both phones produce the same entry (no duplicates). */
+let splitting = false;
+function split21(){
+  if(splitting) return false; splitting = true; let changed = false;
+  try{
+    for(const e of list()){
+      if(e.t!=="sleep") continue;
+      const b = dayStart(e.s) + 21*HOUR, end = e.e ?? Date.now();
+      if(!(e.s < b && end > b)) continue;
+      if(!segs(e).some(([x,y]) => y > b)) continue;           // already awake before 21:00
+      const d = e.d || {}, pl = d.pl || [];
+      const clip = (lo, hi) => pl.map(([x,y])=>[Math.max(x,lo), Math.min(y,hi)]).filter(([x,y])=>y>x);
+      const night = {id: e.id + "_n", t:"sleep", s:b, e:e.e, by:e.by, d:{k:"night", pl:clip(b, end)}};
+      if(d.p && d.p >= b) night.d.p = d.p;
+      if(e.n) night.n = e.n;
+      const nap = JSON.parse(JSON.stringify(e)); nap.e = b; nap.d.k = "nap"; nap.d.pl = clip(e.s, b); delete nap.d.p;
+      for(const x of [nap, night]){ x.u = Date.now(); entries[x.id] = x; queue = queue.filter(id=>id!==x.id); queue.push(x.id); }
+      changed = true;
+    }
+  } finally { splitting = false; }
+  if(changed){ saveLocal(); sync(); }
+  return changed;
+}
 function render(){
+  split21();
   document.documentElement.dataset.theme = theme==="auto" ? (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light") : theme;
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
   renderHeader();
@@ -1224,7 +1249,10 @@ function sleepSheet(){
   const sh = $("#sheet");
   sh.onclick = ev => { const b = ev.target.closest("#zK button"); if(!b) return; b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); };
   tpWire();
-  $("#zStart").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; const at = tpRead(); closeSheet(); startSleep(at, k); };
+  let kTouched = false; sh.querySelector("#zK").addEventListener("click", () => kTouched = true);
+  $("#zStart").onclick = () => { const at = tpRead(), hh = new Date(at).getHours();
+    k = kTouched ? sh.querySelector("#zK .on").dataset.v : ((hh>=21||hh<6) ? "night" : "nap");
+    closeSheet(); startSleep(at, k); };
   $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; const at = tpRead(); editSheet({id:uid(), t:"sleep", s:at, e:Math.min(Date.now(), at+60*MIN), d:{k}}, true); };
 }
 function startPump(at){ put({id:uid(), t:"pump", s:at||Date.now(), e:null, d:{l:"",r:""}}); toast("Nutraukimas pradėtas"); }
