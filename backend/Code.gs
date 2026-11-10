@@ -65,6 +65,9 @@ function status_() {
     out.lastFeedAt = feed.s;
     out.lastFeedText = f.m === 'bottle' ? (f.ml || '?') + ' ml' : f.m === 'breast' ? 'krūtimi' : 'košė';
   }
+  // seconds versions for Garmin watches (32-bit numbers)
+  const sec = x => (x ? Math.floor(x / 1000) : null);
+  out.nowS = sec(out.now); out.sinceS = sec(out.since); out.startedAtS = sec(out.startedAt); out.lastFeedAtS = sec(out.lastFeedAt);
   return out;
 }
 
