@@ -521,6 +521,16 @@ function segs(e){ // active intervals (pauses removed)
 function activeMs(e){ return segs(e).reduce((t,[a,b])=>t+(b-a),0); }
 function pauseMs(e){ return Math.max(0, ((e.e ?? Date.now()) - e.s) - activeMs(e)); }
 function inRange(e, a, b){ return segs(e).reduce((t,[s0,e0])=>t+Math.max(0, Math.min(e0,b) - Math.max(s0,a)),0); }
+/* Night = 21:00–9:00, nap = 9:00–21:00. One sleep entry may contain both parts. */
+function nightWin(d0){ return [addDays(d0,-1) + 21*HOUR, d0 + 9*HOUR]; } // the night ending on the morning of d0
+function nightPart(e, a, b){ let t = 0;
+  for(let D = dayStart(a); D <= b + DAY; D = addDays(D,1)){ const [x,y] = nightWin(D); const lo = Math.max(a,x), hi = Math.min(b,y); if(hi > lo) t += inRange(e, lo, hi); }
+  return t; }
+function kindOf(e){ const end = e.e ?? Date.now(), tot = activeMs(e);
+  if(tot < MIN) return sleepKindAt(e.s);
+  return nightPart(e, e.s, end) * 2 >= tot ? "night" : "nap"; }
+function isNap(e){ return kindOf(e) === "nap"; }
+function clipSegs(e, a, b){ return segs(e).map(([x,y])=>[Math.max(x,a), Math.min(y,b)]).filter(([x,y])=>y>x); }
 function dayStats(d0){
   const d1 = addDays(d0,1), L = list();
   const sleeps = L.filter(e => e.t==="sleep" && inRange(e,d0,d1)>0);
@@ -528,7 +538,7 @@ function dayStats(d0){
   const pumps  = L.filter(e => e.t==="pump" && e.s>=d0 && e.s<d1);
   const diapers= L.filter(e => e.t==="diaper" && e.s>=d0 && e.s<d1);
   const sleepMs = sleeps.reduce((a,e)=>a+inRange(e,d0,d1),0);
-  const naps = sleeps.filter(e => e.d?.k==="nap" && e.s>=d0).length;
+  const naps = sleeps.filter(e => isNap(e) && e.s>=d0).length;
   const breastMs = feeds.filter(f=>f.d?.m==="breast").reduce((a,f)=>a+breastTimes(f).tot,0);
   const bottles = feeds.filter(f=>f.d?.m==="bottle");
   const bottleMl = bottles.reduce((a,f)=>a+(+f.d.ml||0),0);
@@ -548,13 +558,13 @@ function breastTimes(f){
   return {l, r, b, tot:l+r+b};
 }
 function lastOf(t, pred=()=>true){ return list().filter(e=>e.t===t && pred(e)).sort((a,b)=>b.s-a.s)[0]; }
-function nightTotal(d0){ // total night sleep: night sleeps started 18:00 of d0-1 .. 11:00 of d0
-  const a = addDays(d0,-1) + 18*HOUR, b = d0 + 11*HOUR;
-  return list().filter(e=>e.t==="sleep" && e.s>=a && e.s<b && e.d?.k==="night").reduce((t,e)=>t+activeMs(e),0);
+function nightTotal(d0){ // total sleep between 21:00 of d0-1 and 9:00 of d0
+  const [a,b] = nightWin(d0);
+  return list().filter(e=>e.t==="sleep").reduce((t,e)=>t+inRange(e,a,b),0);
 }
-function nightLongest(d0){ // night from 18:00 of d0-1 to 11:00 of d0
-  const a = addDays(d0,-1) + 18*HOUR, b = d0 + 11*HOUR;
-  return list().filter(e=>e.t==="sleep" && e.e && e.s>=a && e.s<b && e.d?.k==="night").reduce((m,e)=>Math.max(m,...segs(e).map(([x,y])=>y-x)),0);
+function nightLongest(d0){ // longest uninterrupted stretch within 21:00–9:00
+  const [a,b] = nightWin(d0);
+  return list().filter(e=>e.t==="sleep" && e.e).reduce((m,e)=>Math.max(m,...clipSegs(e,a,b).map(([x,y])=>y-x)),0);
 }
 function suggestSide(){
   const f = lastOf("feed", e=>e.d?.m==="breast");
@@ -652,7 +662,7 @@ function runCard(e){
       <div class="row"><button class="stop" data-act="stop">■ Baigti</button>${pbtn}${d.side==="B"?"":`<button data-act="switch">⇄ Pusė</button>`}<button data-act="edit">✎</button></div>
     </div>`;
   }
-  const lbl = e.t==="sleep" ? `😴 ${e.d?.k==="night"?"Nakties miegas":"Pogulis"}` : "🥛 Pieno nutraukimas";
+  const lbl = e.t==="sleep" ? `😴 ${kindOf(e)==="night"?"Nakties miegas":"Pogulis"}` : "🥛 Pieno nutraukimas";
   return `<div class="run ${e.t} ${P?"paused":""}" data-id="${e.id}">
     <div class="lbl">${lbl}</div>
     <div class="big tick" data-id="${e.id}">${clock(activeMs(e))}</div>
@@ -684,7 +694,7 @@ function renderDayX(){
 
   /* ---- SLEEP ---- */
   const sp = sleepSplit(d0), sleeps = L.filter(e=>e.t==="sleep" && inRange(e,d0,d1)>0).sort((x,y)=>x.s-y.s);
-  const naps = sleeps.filter(e=>e.d?.k==="nap" && e.s>=d0);
+  const naps = sleeps.filter(e=>isNap(e) && e.s>=d0);
   const segAll = sleeps.flatMap(segs).map(([x,y])=>[Math.max(x,d0),Math.min(y,d1)]).filter(([x,y])=>y>x).sort((x,y)=>x[0]-y[0]);
   const wakes = []; for(let i=1;i<segAll.length;i++){ const g = segAll[i][0]-segAll[i-1][1]; if(g>2*MIN) wakes.push({a:segAll[i-1][1], b:segAll[i][0], g}); }
   const dayWakes = wakes.filter(w=>{ const hr = new Date(w.a).getHours(); return hr>=9 && hr<21; });
@@ -702,7 +712,7 @@ function renderDayX(){
   if(sleeps.length) h += `<div class="card" style="margin-top:8px"><div style="font-weight:700;margin-bottom:4px">Miegai ir budrumas</div>${sleeps.map((e,i)=>{
       const w = wakes.find(x=>Math.abs(x.b - Math.max(e.s,d0))<MIN);
       return `${w?`<div class="wrow">☀️ budri ${dur(w.g)} <span class="muted">(${hm(w.a)}–${hm(w.b)})</span>${(w.g/MIN>N.wake[1] && new Date(w.a).getHours()>=9 && new Date(w.a).getHours()<21)?` <span class="cmp up">ilgiau nei norma</span>`:""}</div>`:""}
-        <div class="srow" data-edit="${e.id}"><span class="sdot ${e.d?.k}"></span><b>${hm(e.s)}–${e.e?hm(e.e):"…"}</b> ${e.d?.k==="night"?"naktis":"pogulis"} · ${dur(activeMs(e))}${pauses(e).length?` <span class="muted">(${pauses(e).length} ${pl(pauses(e).length,["pabudimas","pabudimai","pabudimų"])})</span>`:""}</div>`; }).join("")}</div>`;
+        <div class="srow" data-edit="${e.id}"><span class="sdot ${kindOf(e)}"></span><b>${hm(e.s)}–${e.e?hm(e.e):"…"}</b> ${kindOf(e)==="night"?"naktis":"pogulis"} · ${dur(activeMs(e))}${pauses(e).length?` <span class="muted">(${pauses(e).length} ${pl(pauses(e).length,["pabudimas","pabudimai","pabudimų"])})</span>`:""}</div>`; }).join("")}</div>`;
 
   /* ---- FEEDS ---- */
   const F = s.feeds.slice().sort((x,y)=>x.s-y.s), bottles = F.filter(f=>f.d?.m==="bottle"), breasts = F.filter(f=>f.d?.m==="breast");
@@ -833,7 +843,7 @@ function describe(e){
     return {t:"Papildomas maistas", d:d.food||""};
   }
   if(e.t==="sleep"){ const pz = pauseMs(e), n = pauses(e).length;
-    return {t:d.k==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
+    return {t:kindOf(e)==="night"?"Nakties miegas":"Pogulis", d:(e.e?dur(activeMs(e)):paused(e)?"pauzė":"vyksta")+(n&&pz>=MIN?` · ${n} ${pl(n,["pabudimas","pabudimai","pabudimų"])} (${dur(pz)})`:"")}; }
   if(e.t==="pump") return {t:"Pieno nutraukimas", d:`${pumpMl(e)} ml${d.l||d.r?` (K ${d.l||0} · D ${d.r||0})`:+d.ml?" · abi krūtys":""}${e.e&&activeMs(e)>=MIN?` · ${dur(activeMs(e))}`:""}`};
   if(e.t==="diaper") return {t:"Sauskelnės", d:[d.w?"šlapios":"", d.p?"purvinos":""].filter(Boolean).join(" ir ")||"sausos"};
   if(e.t==="bath") return {t:"Maudynės", d:""};
@@ -893,7 +903,7 @@ function firstDay(){ const L = list(); return L.length ? dayStart(Math.min(...L.
 function rangeDays(n){ const t0 = dayStart(Date.now()); if(!n) n = Math.round((t0 - firstDay())/DAY) + 1; n = Math.max(n,1); return Array.from({length:n}, (_,i)=>addDays(t0, i-n+1)); }
 function hasData(d){ const d1 = addDays(d,1); return list().some(e=>e.s>=d && e.s<d1); }
 function sleepSplit(d){ const d1 = addDays(d,1); let night=0, nap=0;
-  for(const e of list()) if(e.t==="sleep"){ const x = inRange(e,d,d1); if(x){ if(e.d?.k==="night") night+=x; else nap+=x; } }
+  for(const e of list()) if(e.t==="sleep"){ const x = inRange(e,d,d1); if(x){ const n = nightPart(e,d,d1); night+=n; nap+=x-n; } }
   return {night, nap}; }
 function dm(d){ return new Date(d).toLocaleDateString("lt-LT",{month:"long",day:"numeric"}); }
 function tod(ms, base){ // minutes since base-day 12:00 (so evening/night sort correctly)
@@ -957,7 +967,7 @@ function renderDetail(){
 
   if(detail==="sleep"){
     const sp = days.map(sleepSplit), tot = sp.map(x=>(x.night+x.nap)/HOUR);
-    const naps = L.filter(e=>e.t==="sleep" && e.e && e.d?.k==="nap" && e.s>=from && e.s<to);
+    const naps = L.filter(e=>e.t==="sleep" && e.e && isNap(e) && e.s>=from && e.s<to);
     const napDays = full.map(d=>naps.filter(e=>e.s>=d && e.s<addDays(d,1)).length);
     const fT = full.map(d=>{ const x = sleepSplit(d); return (x.night+x.nap)/HOUR; });
     // wake windows (day time)
@@ -979,11 +989,10 @@ function renderDetail(){
   if(detail==="night"){
     const nt = days.map(d=>nightTotal(d)/HOUR), lg = days.map(d=>nightLongest(d)/HOUR);
     const fN = full.map(d=>nightTotal(d)).filter(Boolean), fL = full.map(d=>nightLongest(d)).filter(Boolean);
-    const nights = full.map(d=>{ const a0 = addDays(d,-1)+18*HOUR, b0 = d+11*HOUR;
-      const ss = L.filter(e=>e.t==="sleep" && e.e && e.d?.k==="night" && e.s>=a0 && e.s<b0).sort((x,y)=>x.s-y.s);
-      if(!ss.length) return null;
-      const segsN = ss.flatMap(segs).length;
-      return {bed: tod(ss[0].s), wake: tod(ss[ss.length-1].e), wakes: Math.max(0, segsN-1)}; }).filter(Boolean);
+    const nights = full.map(d=>{ const [a0,b0] = nightWin(d);
+      const sg = L.filter(e=>e.t==="sleep" && e.e).flatMap(e=>clipSegs(e,a0,b0)).sort((x,y)=>x[0]-y[0]);
+      if(!sg.length) return null;
+      return {bed: tod(sg[0][0]), wake: tod(sg[sg.length-1][1]), wakes: Math.max(0, sg.length-1)}; }).filter(Boolean);
     const rec = full.reduce((m,d)=>{ const v = nightLongest(d); return v>m.v?{v,d}:m; },{v:0});
     chartHtml = bars(days,[{vals:lg,color:"color-mix(in srgb,var(--sleep) 70%,var(--accent))",label:"ilgiausias be pertraukos"},{vals:nt.map((v,i)=>Math.max(0,v-lg[i])),color:"color-mix(in srgb,var(--sleep) 35%,transparent)",label:"likęs nakties miegas"}],{fmt:f1,sel:dSel});
     stats = [["Nakties miegas", fN.length?dur(avgOf(fN)):"—", "vidutiniškai"],
@@ -1120,11 +1129,11 @@ function renderTips(){
 /* =========================================================
    Render all + ticking
    ========================================================= */
-/* Sleep type is purely time-based: 21:00–9:00 is night sleep, 9:00–21:00 is a nap.
-   Any sleep crossing 21:00 or 9:00 is split there. Deterministic ids for the continuation,
-   so both phones produce the same entries (no duplicates). */
+/* Sleep type is from the clock (21:00–9:00 night, 9:00–21:00 nap); one sleep stays ONE entry and
+   stats split it by time. Earlier versions split sleeps at 21:00 / 9:00 – merge those pieces back:
+   a sleep that starts exactly at 21:00:00 or 9:00:00 where another ends is joined to it (deterministic,
+   so both phones get the same result). Also keeps d.k in sync for the widgets/watch. */
 function sleepKindAt(t){ const h = new Date(t).getHours(); return (h>=21 || h<9) ? "night" : "nap"; }
-function nextSleepBoundary(t){ const d = dayStart(t); for(const b of [d+9*HOUR, d+21*HOUR, addDays(d,1)+9*HOUR]) if(b > t) return b; }
 let splitting = false;
 function split21(){
   if(splitting) return false; splitting = true; let changed = false;
@@ -1132,23 +1141,21 @@ function split21(){
   try{
     for(let pass = 0; pass < 6; pass++){
       let any = false;
-      for(const e of list()){
-        if(e.t!=="sleep") continue;
-        const b = nextSleepBoundary(e.s), end = e.e ?? Date.now();
-        if(end > b && segs(e).some(([x,y]) => y > b)){
-          const d = e.d || {}, pl = d.pl || [], k2 = sleepKindAt(b);
-          const clip = (lo, hi) => pl.map(([x,y])=>[Math.max(x,lo), Math.min(y,hi)]).filter(([x,y])=>y>x);
-          const rest = {id: e.id + (k2==="night" ? "_n" : "_d"), t:"sleep", s:b, e:e.e, by:e.by, d:{k:k2, pl:clip(b, end)}};
-          if(d.p && d.p >= b) rest.d.p = d.p;
-          if(e.n) rest.n = e.n;
-          const first = JSON.parse(JSON.stringify(e)); first.e = b; first.d = first.d || {}; first.d.k = sleepKindAt(e.s); first.d.pl = clip(e.s, b); delete first.d.p;
-          touch(first); touch(rest); any = true;
-        } else if((e.d?.k) !== sleepKindAt(e.s)){
-          const x = JSON.parse(JSON.stringify(e)); x.d = x.d || {}; x.d.k = sleepKindAt(e.s); touch(x); any = true;
-        }
+      const S = list().filter(e=>e.t==="sleep");
+      const byEnd = {}; for(const e of S) if(e.e) (byEnd[e.e] = byEnd[e.e] || []).push(e);
+      for(const b of S){
+        const t = new Date(b.s); if(!((t.getHours()===21 || t.getHours()===9) && t.getMinutes()===0 && t.getSeconds()===0 && t.getMilliseconds()===0)) continue;
+        const a = (byEnd[b.s] || []).filter(x=>x.id!==b.id && !x.x).sort((x,y)=>x.id<y.id?-1:1)[0];
+        if(!a) continue;
+        const m = JSON.parse(JSON.stringify(a)); m.d = m.d || {}; const bd = b.d || {};
+        m.e = b.e; m.d.pl = (m.d.pl || []).concat(bd.pl || []); delete m.d.p; if(bd.p) m.d.p = bd.p;
+        if(b.n && !m.n) m.n = b.n;
+        const del = JSON.parse(JSON.stringify(b)); del.x = 1;
+        touch(m); touch(del); any = true; break;
       }
       if(!any) break;
     }
+    for(const e of list()) if(e.t==="sleep" && e.d?.k !== kindOf(e)){ const x = JSON.parse(JSON.stringify(e)); x.d = x.d || {}; x.d.k = kindOf(e); touch(x); }
   } finally { splitting = false; }
   if(changed){ saveLocal(); sync(); }
   return changed;
@@ -1251,7 +1258,7 @@ function sleepSheet(){
   }
   const h = new Date().getHours(); let k = (h>=21||h<9) ? "night" : "nap", ago = 0;
   openSheet(`<h3>Miegas</h3>
-    <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
+    <label class="f" hidden>Miego tipas</label><div class="seg" id="zK" hidden><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
     ${tpHtml("Užmigo")}
     <div class="btns"><button class="btn pri" id="zStart">▶ Pradėti laikmatį</button></div>
     <div class="btns"><button class="btn" id="zPast">✎ Įrašyti praėjusį miegą</button></div>`);
@@ -1344,7 +1351,7 @@ function editSheet(e, isNew){
       <label class="f">Kas buteliuke</label><div class="seg" id="xMilk"><button data-v="breast" class="${d.milk!=="formula"&&d.milk!=="mix"?"on":""}">Motinos pienas</button><button data-v="formula" class="${d.milk==="formula"?"on":""}">Mišinys</button><button data-v="mix" class="${d.milk==="mix"?"on":""}">Abu</button></div>`;
   }
   if(e.t==="feed" && d.m==="solid") f += `<label class="f">Ką valgė</label><input class="in" id="xFood" placeholder="pvz. moliūgų tyrelė" value="${esc(d.food)}">`;
-  if(e.t==="sleep") f += `<label class="f">Miego tipas</label><div class="seg" id="xK"><button data-v="nap" class="${d.k!=="night"?"on":""}">Pogulis</button><button data-v="night" class="${d.k==="night"?"on":""}">Nakties miegas</button></div>`;
+  if(e.t==="sleep") f += `<label class="f" hidden>Miego tipas</label><div class="seg" id="xK" hidden><button data-v="nap" class="${d.k!=="night"?"on":""}">Pogulis</button><button data-v="night" class="${d.k==="night"?"on":""}">Nakties miegas</button></div>`;
   if(e.t==="pump"){
     const lp = lastOf("pump", x=>x.id!==e.id && x.e);
     const both = (+d.ml && !+d.l && !+d.r) || (!+d.ml && !+d.l && !+d.r && (!lp || (+lp.d?.ml && !+lp.d?.l && !+lp.d?.r)));
@@ -1386,7 +1393,7 @@ function editSheet(e, isNew){
       if(d.milk==="mix"){ d.bm = +$("#xBm").value||0; d.fm = +$("#xFm").value||0; d.ml = d.bm + d.fm || ""; }
       else { d.ml = +$("#xMl").value || ""; delete d.bm; delete d.fm; } }
     if(e.t==="feed" && d.m==="solid") d.food = $("#xFood").value.trim();
-    if(e.t==="sleep") d.k = segv("xK");
+    if(e.t==="sleep") d.k = kindOf({...e, d});
     if(e.t==="pump"){ if(segv("xPMode")==="both"){ d.ml = +$("#xPB").value || ""; d.l = ""; d.r = ""; } else { d.l = +$("#xPL").value || ""; d.r = +$("#xPR").value || ""; delete d.ml; } }
     if(e.t==="diaper"){ d.w = $("#xW").checked; d.p = $("#xP").checked; }
     if(e.t==="weight"){ d.g = +$("#xG").value||""; d.h = +String($("#xH").value).replace(",",".")||""; d.hc = +String($("#xHc").value).replace(",",".")||""; if(!d.g && !d.h && !d.hc){ $("#xG").focus(); return; } }
