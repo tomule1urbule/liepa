@@ -1,7 +1,7 @@
 /* Liepa service worker – offline first.
    App shell is served from cache immediately (works with no connection) and refreshed in the background;
    when a new version is downloaded the open app is told so it can offer a reload. */
-const CACHE = "liepa-v35";
+const CACHE = "liepa-v36";
 const SHELL = ["./", "index.html", "liepa.webmanifest", "icons/liepa-icon-192.png", "icons/liepa-icon-512.png", "icons/liepa-icon-180.png", "icons/liepa-maskable-512.png"];
 const FONT_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com"];
 

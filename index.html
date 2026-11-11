@@ -1145,7 +1145,7 @@ function split21(){
       const byEnd = {}; for(const e of S) if(e.e) (byEnd[e.e] = byEnd[e.e] || []).push(e);
       for(const b of S){
         const t = new Date(b.s); if(!((t.getHours()===21 || t.getHours()===9) && t.getMinutes()===0 && t.getSeconds()===0 && t.getMilliseconds()===0)) continue;
-        const a = (byEnd[b.s] || []).filter(x=>x.id!==b.id && !x.x).sort((x,y)=>x.id<y.id?-1:1)[0];
+        const a = (byEnd[b.s] || []).filter(x=>x.id!==b.id && !x.x).sort((x,y)=>(y.s-x.s) || (x.id<y.id?-1:1))[0]; // the piece right before it
         if(!a) continue;
         const m = JSON.parse(JSON.stringify(a)); m.d = m.d || {}; const bd = b.d || {};
         m.e = b.e; m.d.pl = (m.d.pl || []).concat(bd.pl || []); delete m.d.p; if(bd.p) m.d.p = bd.p;
