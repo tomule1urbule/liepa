@@ -1139,19 +1139,20 @@ function split21(){
   if(splitting) return false; splitting = true; let changed = false;
   const touch = x => { x.u = Date.now(); entries[x.id] = x; queue = queue.filter(id=>id!==x.id); queue.push(x.id); changed = true; };
   try{
-    for(let pass = 0; pass < 6; pass++){
-      let any = false;
+    for(let pass = 0; pass < 50; pass++){
+      let any = false; const used = new Set();
       const S = list().filter(e=>e.t==="sleep");
       const byEnd = {}; for(const e of S) if(e.e) (byEnd[e.e] = byEnd[e.e] || []).push(e);
       for(const b of S){
+        if(used.has(b.id)) continue;
         const t = new Date(b.s); if(!((t.getHours()===21 || t.getHours()===9) && t.getMinutes()===0 && t.getSeconds()===0 && t.getMilliseconds()===0)) continue;
-        const a = (byEnd[b.s] || []).filter(x=>x.id!==b.id && !x.x).sort((x,y)=>(y.s-x.s) || (x.id<y.id?-1:1))[0]; // the piece right before it
+        const a = (byEnd[b.s] || []).filter(x=>x.id!==b.id && !x.x && !used.has(x.id)).sort((x,y)=>(y.s-x.s) || (x.id<y.id?-1:1))[0]; // the piece right before it
         if(!a) continue;
         const m = JSON.parse(JSON.stringify(a)); m.d = m.d || {}; const bd = b.d || {};
         m.e = b.e; m.d.pl = (m.d.pl || []).concat(bd.pl || []); delete m.d.p; if(bd.p) m.d.p = bd.p;
         if(b.n && !m.n) m.n = b.n;
         const del = JSON.parse(JSON.stringify(b)); del.x = 1;
-        touch(m); touch(del); any = true; break;
+        touch(m); touch(del); used.add(m.id); used.add(b.id); any = true;
       }
       if(!any) break;
     }
