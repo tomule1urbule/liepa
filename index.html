@@ -687,7 +687,7 @@ function renderDayX(){
   const naps = sleeps.filter(e=>e.d?.k==="nap" && e.s>=d0);
   const segAll = sleeps.flatMap(segs).map(([x,y])=>[Math.max(x,d0),Math.min(y,d1)]).filter(([x,y])=>y>x).sort((x,y)=>x[0]-y[0]);
   const wakes = []; for(let i=1;i<segAll.length;i++){ const g = segAll[i][0]-segAll[i-1][1]; if(g>2*MIN) wakes.push({a:segAll[i-1][1], b:segAll[i][0], g}); }
-  const dayWakes = wakes.filter(w=>{ const hr = new Date(w.a).getHours(); return hr>=6 && hr<21; });
+  const dayWakes = wakes.filter(w=>{ const hr = new Date(w.a).getHours(); return hr>=9 && hr<21; });
   const longestSeg = segAll.reduce((m,[x,y])=>Math.max(m,y-x),0);
   const nt = nightTotal(d0), nlng = nightLongest(d0);
   h += `<h2 id="sec-sleep">😴 Miegas</h2>`;
@@ -701,7 +701,7 @@ function renderDayX(){
   ]);
   if(sleeps.length) h += `<div class="card" style="margin-top:8px"><div style="font-weight:700;margin-bottom:4px">Miegai ir budrumas</div>${sleeps.map((e,i)=>{
       const w = wakes.find(x=>Math.abs(x.b - Math.max(e.s,d0))<MIN);
-      return `${w?`<div class="wrow">☀️ budri ${dur(w.g)} <span class="muted">(${hm(w.a)}–${hm(w.b)})</span>${(w.g/MIN>N.wake[1] && new Date(w.a).getHours()>=6 && new Date(w.a).getHours()<21)?` <span class="cmp up">ilgiau nei norma</span>`:""}</div>`:""}
+      return `${w?`<div class="wrow">☀️ budri ${dur(w.g)} <span class="muted">(${hm(w.a)}–${hm(w.b)})</span>${(w.g/MIN>N.wake[1] && new Date(w.a).getHours()>=9 && new Date(w.a).getHours()<21)?` <span class="cmp up">ilgiau nei norma</span>`:""}</div>`:""}
         <div class="srow" data-edit="${e.id}"><span class="sdot ${e.d?.k}"></span><b>${hm(e.s)}–${e.e?hm(e.e):"…"}</b> ${e.d?.k==="night"?"naktis":"pogulis"} · ${dur(activeMs(e))}${pauses(e).length?` <span class="muted">(${pauses(e).length} ${pl(pauses(e).length,["pabudimas","pabudimai","pabudimų"])})</span>`:""}</div>`; }).join("")}</div>`;
 
   /* ---- FEEDS ---- */
@@ -962,7 +962,7 @@ function renderDetail(){
     const fT = full.map(d=>{ const x = sleepSplit(d); return (x.night+x.nap)/HOUR; });
     // wake windows (day time)
     const sl = L.filter(e=>e.t==="sleep" && e.e && e.s>=from && e.s<to).sort((x,y)=>x.s-y.s);
-    const ww = []; for(let i=1;i<sl.length;i++){ const g = sl[i].s - sl[i-1].e, hr = new Date(sl[i].s).getHours(); if(g>5*MIN && g<6*HOUR && hr>=7 && hr<21) ww.push(g/MIN); }
+    const ww = []; for(let i=1;i<sl.length;i++){ const g = sl[i].s - sl[i-1].e, hr = new Date(sl[i].s).getHours(); if(g>5*MIN && g<6*HOUR && hr>=9 && hr<21) ww.push(g/MIN); }
     const longestNap = naps.reduce((m,e)=>activeMs(e)>m.v?{v:activeMs(e),e}:m,{v:0});
     chartHtml = bars(days,[{vals:sp.map(x=>x.night/HOUR),color:"var(--sleep)",label:"naktį"},{vals:sp.map(x=>x.nap/HOUR),color:"color-mix(in srgb,var(--sleep) 45%,transparent)",label:"dieną"}],{fmt:f1,band:N.sleep,sel:dSel});
     stats = [["Miegas per parą", `${f1(avgOf(fT))} val.`, `rekomenduojama ${N.sleep[0]}–${N.sleep[1]} val.`],
@@ -998,14 +998,14 @@ function renderDetail(){
   if(detail==="feeds"){
     const S = days.map(dayStats), F = L.filter(e=>e.t==="feed" && e.s>=from && e.s<to).sort((x,y)=>x.s-y.s);
     const gaps = []; for(let i=1;i<F.length;i++){ const g = F[i].s - F[i-1].s; if(g < 10*HOUR) gaps.push(g); }
-    const nightFeeds = full.map(d=>F.filter(f=>f.s>=addDays(d,-1)+21*HOUR && f.s<d+6*HOUR).length);
+    const nightFeeds = full.map(d=>F.filter(f=>f.s>=addDays(d,-1)+21*HOUR && f.s<d+9*HOUR).length);
     const fC = full.map(d=>dayStats(d).feeds.length);
     chartHtml = bars(days,[{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="bottle").length),color:"var(--feed)",label:"buteliukas"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="breast").length),color:"color-mix(in srgb,var(--feed) 45%,transparent)",label:"krūtis"},{vals:S.map(s=>s.feeds.filter(f=>f.d?.m==="solid").length),color:"var(--growth)",label:"košė"}].filter(x=>x.vals.some(Boolean)),{fmt:v=>v,band:N.feeds,sel:dSel});
     const br = F.filter(f=>f.d?.m==="breast");
     stats = [["Maitinimų per parą", f1(avgOf(fC)), `įprasta ${N.feeds[0]}–${N.feeds[1]}`],
       ["Tarpas tarp maitinimų", gaps.length?dur(avgOf(gaps)):"—", `įprasta ${String(N.gap[0]).replace(".",",")}–${String(N.gap[1]).replace(".",",")} val.`],
       ["Ilgiausias tarpas", gaps.length?dur(Math.max(...gaps)):"—", ""],
-      ["Naktinių maitinimų", f1(avgOf(nightFeeds)), "21:00–6:00, per naktį"],
+      ["Naktinių maitinimų", f1(avgOf(nightFeeds)), "21:00–9:00, per naktį"],
       ["Krūtimi", br.length?`${br.length} k.`:"—", br.length?`vid. ${dur(avgOf(br.map(f=>breastTimes(f).tot)))}`:""],
       ["Buteliuku", `${F.filter(f=>f.d?.m==="bottle").length} k.`, "per laikotarpį"]];
     extra = trendTxt(fC);
@@ -1120,25 +1120,34 @@ function renderTips(){
 /* =========================================================
    Render all + ticking
    ========================================================= */
-/* Everything before 21:00 is a nap, from 21:00 night sleep: split any sleep that crosses 21:00.
-   Deterministic id for the night part, so both phones produce the same entry (no duplicates). */
+/* Sleep type is purely time-based: 21:00–9:00 is night sleep, 9:00–21:00 is a nap.
+   Any sleep crossing 21:00 or 9:00 is split there. Deterministic ids for the continuation,
+   so both phones produce the same entries (no duplicates). */
+function sleepKindAt(t){ const h = new Date(t).getHours(); return (h>=21 || h<9) ? "night" : "nap"; }
+function nextSleepBoundary(t){ const d = dayStart(t); for(const b of [d+9*HOUR, d+21*HOUR, addDays(d,1)+9*HOUR]) if(b > t) return b; }
 let splitting = false;
 function split21(){
   if(splitting) return false; splitting = true; let changed = false;
+  const touch = x => { x.u = Date.now(); entries[x.id] = x; queue = queue.filter(id=>id!==x.id); queue.push(x.id); changed = true; };
   try{
-    for(const e of list()){
-      if(e.t!=="sleep") continue;
-      const b = dayStart(e.s) + 21*HOUR, end = e.e ?? Date.now();
-      if(!(e.s < b && end > b)) continue;
-      if(!segs(e).some(([x,y]) => y > b)) continue;           // already awake before 21:00
-      const d = e.d || {}, pl = d.pl || [];
-      const clip = (lo, hi) => pl.map(([x,y])=>[Math.max(x,lo), Math.min(y,hi)]).filter(([x,y])=>y>x);
-      const night = {id: e.id + "_n", t:"sleep", s:b, e:e.e, by:e.by, d:{k:"night", pl:clip(b, end)}};
-      if(d.p && d.p >= b) night.d.p = d.p;
-      if(e.n) night.n = e.n;
-      const nap = JSON.parse(JSON.stringify(e)); nap.e = b; nap.d.k = "nap"; nap.d.pl = clip(e.s, b); delete nap.d.p;
-      for(const x of [nap, night]){ x.u = Date.now(); entries[x.id] = x; queue = queue.filter(id=>id!==x.id); queue.push(x.id); }
-      changed = true;
+    for(let pass = 0; pass < 6; pass++){
+      let any = false;
+      for(const e of list()){
+        if(e.t!=="sleep") continue;
+        const b = nextSleepBoundary(e.s), end = e.e ?? Date.now();
+        if(end > b && segs(e).some(([x,y]) => y > b)){
+          const d = e.d || {}, pl = d.pl || [], k2 = sleepKindAt(b);
+          const clip = (lo, hi) => pl.map(([x,y])=>[Math.max(x,lo), Math.min(y,hi)]).filter(([x,y])=>y>x);
+          const rest = {id: e.id + (k2==="night" ? "_n" : "_d"), t:"sleep", s:b, e:e.e, by:e.by, d:{k:k2, pl:clip(b, end)}};
+          if(d.p && d.p >= b) rest.d.p = d.p;
+          if(e.n) rest.n = e.n;
+          const first = JSON.parse(JSON.stringify(e)); first.e = b; first.d = first.d || {}; first.d.k = sleepKindAt(e.s); first.d.pl = clip(e.s, b); delete first.d.p;
+          touch(first); touch(rest); any = true;
+        } else if((e.d?.k) !== sleepKindAt(e.s)){
+          const x = JSON.parse(JSON.stringify(e)); x.d = x.d || {}; x.d.k = sleepKindAt(e.s); touch(x); any = true;
+        }
+      }
+      if(!any) break;
     }
   } finally { splitting = false; }
   if(changed){ saveLocal(); sync(); }
@@ -1240,7 +1249,7 @@ function sleepSheet(){
       if(z==="stop"){ stopEntry(run); toast(`Miegojo ${dur(activeMs(run))}`); } };
     return;
   }
-  const h = new Date().getHours(); let k = (h>=21||h<6) ? "night" : "nap", ago = 0;
+  const h = new Date().getHours(); let k = (h>=21||h<9) ? "night" : "nap", ago = 0;
   openSheet(`<h3>Miegas</h3>
     <label class="f">Miego tipas</label><div class="seg" id="zK"><button data-v="nap" class="${k==="nap"?"on":""}">Pogulis</button><button data-v="night" class="${k==="night"?"on":""}">Nakties miegas</button></div>
     ${tpHtml("Užmigo")}
@@ -1251,7 +1260,7 @@ function sleepSheet(){
   tpWire();
   let kTouched = false; sh.querySelector("#zK").addEventListener("click", () => kTouched = true);
   $("#zStart").onclick = () => { const at = tpRead(), hh = new Date(at).getHours();
-    k = kTouched ? sh.querySelector("#zK .on").dataset.v : ((hh>=21||hh<6) ? "night" : "nap");
+    k = kTouched ? sh.querySelector("#zK .on").dataset.v : ((hh>=21||hh<9) ? "night" : "nap");
     closeSheet(); startSleep(at, k); };
   $("#zPast").onclick = () => { k = sh.querySelector("#zK .on").dataset.v; const at = tpRead(); editSheet({id:uid(), t:"sleep", s:at, e:Math.min(Date.now(), at+60*MIN), d:{k}}, true); };
 }
