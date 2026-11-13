@@ -1253,6 +1253,20 @@ function stopEntry(e){
   else { accSide(e, now); e.e = now; }
   put(e); return e;
 }
+/* "Pabudo" with a chosen time (default now) */
+function wakeSheet(e){
+  openSheet(`<h3>Pabudo</h3>${tpHtml("Kada pabudo")}<div class="btns"><button class="btn pri" id="wkOk">☀️ Pabudo</button></div>`);
+  tpWire();
+  $("#wkOk").onclick = () => { const at = tpRead(); closeSheet(); stopSleepAt(e, at); };
+}
+function stopSleepAt(e, at){
+  const now = Date.now(); at = Math.max(e.s, Math.min(at || now, now));
+  if(now - at < MIN){ stopEntry(e); toast(`Miegojo ${dur(activeMs(e))}`); return; }
+  const d = e.d = e.d || {};
+  if(d.p && d.p <= at){ e.e = d.p; delete d.p; }
+  else { delete d.p; d.pl = (d.pl||[]).filter(([x])=>x < at).map(([x,y])=>[x, Math.min(y, at)]); e.e = at; }
+  put(e); toast(`Miegojo ${dur(activeMs(e))} · pabudo ${hm(e.e)}`);
+}
 function pauseEntry(e){ if(paused(e)) return; const now = Date.now(); accSide(e, now); e.d.p = now; put(e);
   toast(e.t==="sleep" ? "Pauzė – jei vėl užmigs, spauskite „Vėl užmigo“" : "Pauzė"); }
 function resumeEntry(e){ if(!paused(e)) return; const now = Date.now(); e.d.pl = (e.d.pl||[]).concat([[e.d.p, now]]); delete e.d.p;
@@ -1268,15 +1282,16 @@ function sleepSheet(){
     openSheet(`<h3>${P?"Miegas pristabdytas":"Miega jau "+dur(activeMs(run))}</h3><div class="big-opts">
       ${P ? `<button class="opt sug" data-z="resume">▶ Vėl užmigo<span>tęsti tą patį miegą</span></button>
              <button class="opt" data-z="stop">■ Baigti miegą<span>pabudo ${hm(run.d.p)}</span></button>`
-          : `<button class="opt" data-z="stop">☀️ Pabudo<span>baigti miegą dabar</span></button>
+          : `<button class="opt" data-z="stop">☀️ Pabudo<span>baigti miegą – dabar ar kitu laiku</span></button>
              <button class="opt" data-z="pause">⏸ Pauzė<span>prabudo, bet gal dar užmigs</span></button>`}
       <button class="opt wide" data-z="edit">✎ Taisyti laikus</button></div>`);
     $("#sheet").onclick = ev => { const b = ev.target.closest("[data-z]"); if(!b) return; const z = b.dataset.z;
       if(z==="edit"){ editSheet(run); return; }
+      if(z==="stop" && !P){ wakeSheet(run); return; }
       closeSheet();
       if(z==="resume") resumeEntry(run);
       if(z==="pause") pauseEntry(run);
-      if(z==="stop"){ stopEntry(run); toast(`Miegojo ${dur(activeMs(run))}`); } };
+      if(z==="stop"){ if(P){ stopEntry(run); toast(`Miegojo ${dur(activeMs(run))}`); } else wakeSheet(run); } };
     return;
   }
   const h = new Date().getHours(); let k = (h>=21||h<9) ? "night" : "nap", ago = 0;
@@ -1616,6 +1631,7 @@ document.addEventListener("click", ev => {
     return; }
   const act = ev.target.closest("[data-act]");
   if(act){ const e = entries[act.closest("[data-id]").dataset.id]; if(!e) return; const a = act.dataset.act;
+    if(a==="stop" && e.t==="sleep" && !paused(e)){ wakeSheet(e); return; }
     if(a==="stop"){ stopEntry(e);
       if(e.t==="pump") editSheet(e);
       else if(e.t==="feed"){ const bt = breastTimes(e); toast(`Maitinimas: ${dur(bt.tot)}${bt.l&&bt.r?` (K ${dur(bt.l)}, D ${dur(bt.r)})`:""}`); }
