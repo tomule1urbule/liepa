@@ -1178,7 +1178,9 @@ function split21(){
       }
       if(!any) break;
     }
-    for(const e of list()) if(e.t==="sleep" && e.d?.k !== kindOf(e)){ const x = JSON.parse(JSON.stringify(e)); x.d = x.d || {}; x.d.k = kindOf(e); touch(x); }
+    // NOTE: never rewrite entries automatically just to refresh the type (d.k) – an automatic write with a
+    // fresh timestamp could overwrite a stop made on the other phone. Type is computed with kindOf() on display;
+    // d.k is only stored when a sleep is stopped or edited.
   } finally { splitting = false; }
   if(changed){ saveLocal(); sync(); }
   return changed;
@@ -1251,6 +1253,7 @@ function stopEntry(e){
   const now = Date.now();
   if(paused(e)){ e.e = e.d.p; delete e.d.p; }   // stopped during a pause → it ended when the pause began
   else { accSide(e, now); e.e = now; }
+  if(e.t==="sleep"){ e.d = e.d || {}; e.d.k = kindOf(e); }
   put(e); return e;
 }
 /* "Pabudo" with a chosen time (default now) */
@@ -1265,6 +1268,7 @@ function stopSleepAt(e, at){
   const d = e.d = e.d || {};
   if(d.p && d.p <= at){ e.e = d.p; delete d.p; }
   else { delete d.p; d.pl = (d.pl||[]).filter(([x])=>x < at).map(([x,y])=>[x, Math.min(y, at)]); e.e = at; }
+  d.k = kindOf(e);
   put(e); toast(`Miegojo ${dur(activeMs(e))} · pabudo ${hm(e.e)}`);
 }
 function pauseEntry(e){ if(paused(e)) return; const now = Date.now(); accSide(e, now); e.d.p = now; put(e);
@@ -1272,6 +1276,9 @@ function pauseEntry(e){ if(paused(e)) return; const now = Date.now(); accSide(e,
 function resumeEntry(e){ if(!paused(e)) return; const now = Date.now(); e.d.pl = (e.d.pl||[]).concat([[e.d.p, now]]); delete e.d.p;
   if(e.t==="feed" && e.d.m==="breast") e.d.ss = now; put(e); }
 function startSleep(at, k){
+  at = at || Date.now();
+  // a new sleep can't overlap a still-running one: end any running sleep when the new one starts
+  running().filter(e=>e.t==="sleep").forEach(e=>stopSleepAt(e, Math.max(e.s, at)));
   put({id:uid(), t:"sleep", s:at||Date.now(), e:null, d:{k}});
   toast("Saldžių sapnų 🌙");
 }
