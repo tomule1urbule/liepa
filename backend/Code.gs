@@ -84,14 +84,14 @@ function doPost(e) {
     const rows = last > 1 ? sh.getRange(2, 1, last - 1, 4).getValues() : [];
     const idx = {};
     rows.forEach((r, i) => { idx[r[0]] = i; });
-    const appends = [];
+    const appends = [], rejected = {};
     (body.items || []).forEach(it => {
       if (!it || !it.id) return;
       const row = [it.id, JSON.stringify(it), now, it.x ? 1 : 0];
       if (idx[it.id] != null) {
         const i = idx[it.id];
         let cur = {}; try { cur = JSON.parse(rows[i][1]); } catch (err) {}
-        if ((it.u || 0) < (cur.u || 0)) return;          // older edit – ignore
+        if ((it.u || 0) < (cur.u || 0)) { rejected[it.id] = 1; return; }   // older edit – ignore, but send the newer copy back
         rows[i] = row;
         sh.getRange(i + 2, 1, 1, 4).setValues([row]);
       } else {
@@ -101,7 +101,7 @@ function doPost(e) {
     });
     if (appends.length) sh.getRange(sh.getLastRow() + 1, 1, appends.length, 4).setValues(appends);
     const since = +body.since || 0;
-    const items = rows.concat(appends).filter(r => +r[2] > since).map(r => { try { return JSON.parse(r[1]); } catch (err) { return null; } }).filter(Boolean);
+    const items = rows.concat(appends).filter(r => +r[2] > since || rejected[r[0]]).map(r => { try { return JSON.parse(r[1]); } catch (err) { return null; } }).filter(Boolean);
     return out_({ ok: true, now: now, items: items });
   } finally {
     lock.releaseLock();

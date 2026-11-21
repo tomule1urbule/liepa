@@ -1731,7 +1731,7 @@ async function sync(){
     for(const it of j.items||[]){
       if(queue.includes(it.id)) continue;                 // local edit pending wins
       const cur = entries[it.id];
-      if(!cur || (it.u||0) >= (cur.u||0)){ if(JSON.stringify(cur)!==JSON.stringify(it)){ entries[it.id] = it; changed = true; } }
+      if(JSON.stringify(cur)!==JSON.stringify(it)){ entries[it.id] = it; changed = true; }   // server copy is the truth unless we have a pending local edit
     }
     since = j.now; LS.set("lp_since", since); saveLocal(); setSync("ok");
     if(changed && !$("#scrim").classList.contains("show")) render();
