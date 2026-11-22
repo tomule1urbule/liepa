@@ -5,7 +5,7 @@
  * 1) script.google.com → Naujas projektas → įklijuokite šį kodą (pakeiskite visą Code.gs turinį).
  * 2) Jei norite, pakeiskite TEVU_PIN (tėvų slaptažodis norų redagavimui).
  * 3) Diegti → Naujas diegimas → Žiniatinklio programa; Vykdyti kaip: aš; Prieiga: bet kas.
- * 4) Gautą /exec adresą įrašykite į index.html (const API = '...').
+ * 4) Gautą /exec adresą įrašykite į index.html (const API = '...') – jau įrašyta.
  *
  * Duomenys saugomi Google Sheet faile „Liepos Kalėdų norai“ (sukuriamas automatiškai,
  * pirmą kartą užpildomas pavyzdiniais norais – juos galite keisti programėlėje).
