@@ -73,30 +73,70 @@ function list_(sh) {
   return { ok: true, now: Date.now(), items: items };
 }
 
-/** Product photo from a shop page: og:image / twitter:image / JSON-LD image. '' if none. */
+const UAS_ = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'
+];
+
+function get_(url, ua) {
+  return UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true, followRedirects: true, validateHttpsCertificates: false,
+    headers: { 'User-Agent': ua, 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8', 'Accept-Language': 'lt-LT,lt;q=0.9,en;q=0.8', 'Cache-Control': 'no-cache' }
+  });
+}
+
+/** Remove tracking parameters (utm_*, fbclid, ...) from a shop link. */
+function cleanLink_(url) {
+  if (!/^https?:\/\//i.test(url || '')) return '';
+  const parts = String(url).trim().split('#')[0].split('?');
+  if (parts.length < 2) return parts[0].slice(0, 600);
+  const keep = parts[1].split('&').filter(kv => kv && !/^(utm_[a-z]+|fbclid|gclid|gbraid|wbraid|srsltid|mc_[a-z]+|igsh|media_type)=/i.test(kv));
+  return (parts[0] + (keep.length ? '?' + keep.join('&') : '')).slice(0, 600);
+}
+
+function absUrl_(img, page) {
+  img = String(img || '').replace(/&amp;/g, '&').replace(/\\\//g, '/').trim();
+  if (!img || /^data:/i.test(img)) return '';
+  if (img.indexOf('//') === 0) return 'https:' + img;
+  if (img.charAt(0) === '/') return page.match(/^https?:\/\/[^\/]+/i)[0] + img;
+  if (!/^https?:\/\//i.test(img)) return page.replace(/[^\/]*$/, '') + img;
+  return img;
+}
+
+/** Find the product photo in page HTML. */
+function photoInHtml_(html, url) {
+  const meta = (key) => {
+    const re1 = new RegExp('<meta[^>]+(?:property|name|itemprop)=["\']' + key + '["\'][^>]*content=["\']([^"\']+)', 'i');
+    const re2 = new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name|itemprop)=["\']' + key + '["\']', 'i');
+    const m = html.match(re1) || html.match(re2); return m ? m[1] : '';
+  };
+  let img = meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') || meta('twitter:image:src') || meta('image');
+  if (!img) { const m = html.match(/"image"\s*:\s*(?:\[\s*)?(?:\{[^}]*?"(?:url|contentUrl)"\s*:\s*)?"([^"]+\.(?:jpe?g|png|webp|avif)[^"]*)"/i); if (m) img = m[1]; }
+  if (!img) { const m = html.match(/<link[^>]+rel=["']image_src["'][^>]*href=["']([^"']+)/i); if (m) img = m[1]; }
+  if (!img) { const m = html.match(/<img[^>]+itemprop=["']image["'][^>]*src=["']([^"']+)/i) || html.match(/<img[^>]+src=["']([^"']+)["'][^>]*itemprop=["']image["']/i); if (m) img = m[1]; }
+  if (!img) {   // first image that looks like a product photo (not a logo / icon)
+    const re = /<img[^>]+?(?:data-src|data-original|src)=["']([^"']+\.(?:jpe?g|png|webp|avif)[^"']*)["']/ig; let m;
+    while ((m = re.exec(html))) {
+      if (/logo|icon|sprite|banner|flag|payment|avatar|placeholder|blank|loader/i.test(m[1])) continue;
+      if (/product|catalog|gallery|\/p\/|item|large|zoom|800|1000|1200/i.test(m[1])) { img = m[1]; break; }
+    }
+  }
+  img = absUrl_(img, url);
+  return /^https?:\/\//i.test(img) ? img.slice(0, 600) : '';
+}
+
+/** Product photo from a shop page. '' if none. */
 function photoFrom_(url) {
   if (!/^https?:\/\//i.test(url || '')) return '';
-  try {
-    const res = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true, followRedirects: true, validateHttpsCertificates: false,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36', 'Accept-Language': 'lt,en;q=0.8' }
-    });
-    if (res.getResponseCode() >= 400) return '';
-    const html = res.getContentText().slice(0, 600000);
-    const meta = (key) => {
-      const re1 = new RegExp('<meta[^>]+(?:property|name)=["\']' + key + '["\'][^>]*content=["\']([^"\']+)', 'i');
-      const re2 = new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' + key + '["\']', 'i');
-      const m = html.match(re1) || html.match(re2); return m ? m[1] : '';
-    };
-    let img = meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') || meta('twitter:image:src');
-    if (!img) { const m = html.match(/"image"\s*:\s*(?:\[\s*)?(?:\{[^}]*?"url"\s*:\s*)?"([^"]+\.(?:jpe?g|png|webp)[^"]*)"/i); if (m) img = m[1]; }
-    if (!img) { const m = html.match(/<link[^>]+rel=["']image_src["'][^>]*href=["']([^"']+)/i); if (m) img = m[1]; }
-    if (!img) return '';
-    img = img.replace(/&amp;/g, '&').replace(/\\\//g, '/').trim();
-    if (img.indexOf('//') === 0) img = 'https:' + img;
-    else if (img.charAt(0) === '/') img = url.match(/^https?:\/\/[^\/]+/i)[0] + img;
-    return /^https?:\/\//i.test(img) ? img.slice(0, 600) : '';
-  } catch (e) { return ''; }
+  for (let i = 0; i < UAS_.length; i++) {
+    try {
+      const res = get_(url, UAS_[i]);
+      if (res.getResponseCode() >= 400) continue;
+      const ph = photoInHtml_(res.getContentText().slice(0, 800000), url);
+      if (ph) return ph;
+    } catch (e) {}
+  }
+  return '';
 }
 
 function out_(o) {
@@ -155,7 +195,7 @@ function doPost(e) {
         title: clean_(s.title, 120) || 'Noras',
         desc: clean_(s.desc, 500),
         price: clean_(s.price, 30),
-        link: /^https?:\/\//i.test(s.link || '') ? String(s.link).slice(0, 600) : '',
+        link: cleanLink_(s.link),
         img: /^https?:\/\//i.test(s.img || '') ? String(s.img).slice(0, 600) : '',
         emoji: clean_(s.emoji, 8) || '🎁',
         qty: Math.max(1, Math.min(50, parseInt(s.qty, 10) || 1)),
@@ -170,6 +210,14 @@ function doPost(e) {
       if (x) sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(it)]);
       else sh.appendRow(rowOf_(it));
       return out_(list_(sh));
+    }
+
+    if (b.a === 'probe') {   // diagnostics: what does the shop return to this server?
+      const url = cleanLink_(b.url);
+      return out_({ ok: true, url: url, tries: UAS_.map(ua => {
+        try { const r = get_(url, ua), t = r.getContentText(); return { code: r.getResponseCode(), len: t.length, title: (t.match(/<title[^>]*>([^<]{0,80})/i) || [])[1] || '', photo: photoInHtml_(t.slice(0, 800000), url) }; }
+        catch (e) { return { error: String(e).slice(0, 200) }; }
+      }) });
     }
 
     if (b.a === 'photos') {   // fill in missing photos for all wishes that have a link
