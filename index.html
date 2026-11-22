@@ -787,7 +787,6 @@ function renderHome(){
     const sleepNow = sleepRun && !paused(sleepRun);
     h += `<div class="grid3">
       ${gridBtn("bottle","🍼","Buteliukas", sinceTxt(lBottle,now), false, 0, lBottle ? `<b>${lBottle.d.ml||"?"} ml</b> · ${hm(lBottle.s)}<br>${milkTxt(lBottle)}` : "")}
-      ${gridBtn("breast","🤱","Krūtis", sinceTxt(lBreast,now), !!feedRun, feedRun?.s, feedRun ? sideTxt(feedRun.d.side) : lBreast ? `<b>${dur(breastTimes(lBreast).tot)}</b> · ${hm(lBreast.s)}` : "")}
       ${gridBtn("sleep","😴", sleepNow?"Miega":sleepRun?"Miegas ⏸":"Miegas", sleepRun ? `prabudo ${hm(sleepRun.d.p)}` : lSleep ? `budri ${dur(now-lSleep.e)}` : "dar nėra", sleepNow, sleepRun?.s,
           sleepRun ? `nuo ${hm(sleepRun.s)}` : lSleep ? `<b>${dur(activeMs(lSleep))}</b><br>${hm(lSleep.s)}–${hm(lSleep.e)}` : "")}
       ${gridBtn("pump","🥛","Nutraukimas", sinceTxt(lPump,now), !!pumpRun, pumpRun?.s, pumpRun ? `nuo ${hm(pumpRun.s)}` : lPump ? `<b>${pumpMl(lPump)} ml</b> · ${hm(lPump.s)}${lPump.d.l||lPump.d.r?`<br>K ${lPump.d.l||0} · D ${lPump.d.r||0}`:""}` : "")}
