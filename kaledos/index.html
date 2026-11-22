@@ -298,7 +298,7 @@ function euro(v){
   if (!nums.length) return `<span class="price txt">${esc(raw)}</span>`;
   const f = n => n.toLocaleString('lt-LT', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
   const amt = nums.length > 1 ? `${f(nums[0])}–${f(nums[1])}` : f(nums[0]);
-  return `<span class="price">${amt}<span class="cur">€</span></span>`;
+  return `<span class="price"><span class="cur">~</span>${amt}<span class="cur">€</span></span>`;
 }
 function priceInput(v){ // stored form: numbers only, e.g. "12", "12,50", "40–60"
   return String(v || '').replace(/eur(ų|ai|as)?|€/gi, '').replace(/\s*[-–—]\s*/g, '–').replace(/\./g, ',').replace(/[^\d,–]/g, '').replace(/^–+|–+$/g, '');
