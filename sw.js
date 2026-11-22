@@ -32,6 +32,7 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.origin === location.origin && url.pathname.includes("/kaledos/")) return;   // Kalėdų norų sąrašas – atskira programėlė
 
   // Google fonts: cache first (so the look is the same offline)
   if (FONT_HOSTS.includes(url.hostname)) {

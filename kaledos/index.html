@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Liepos Kalėdų norai 🎄</title>
+<meta name="description" content="Liepos pirmųjų Kalėdų norų sąrašas. Išsirinkite dovaną – visi matys, kas jau išrinkta, kad niekas nepirktų to paties.">
+<meta name="theme-color" content="#0f2a22">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Liepos Kalėdų norai 🎄">
+<meta property="og:description" content="Išsirinkite dovaną Liepai – visi matys, kas jau išrinkta.">
+<meta property="og:image" content="https://tomule1urbule.github.io/liepa/kaledos/og.png">
+<meta property="og:url" content="https://tomule1urbule.github.io/liepa/kaledos/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500;1,9..144,600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0f2a22; --night2:#163a2f; --pine:#1f4d3d; --cream:#fbf6ec; --paper:#fffaf1;
+    --ink:#2a2420; --muted:#7a6f66; --berry:#b8323a; --berry2:#d9474f; --gold:#d8a94b; --gold2:#f2cf7c;
+    --line:rgba(42,36,32,.12); --shadow:0 10px 30px -12px rgba(0,0,0,.45);
+    --r:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:Nunito,system-ui,sans-serif;color:var(--ink);min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #2b5e4b 0%, transparent 60%),
+      radial-gradient(800px 500px at 100% 100%, #2a1d1a 0%, transparent 60%),
+      linear-gradient(180deg,var(--night),#0b1f19 70%);
+    background-attachment:fixed;
+  }
+  #snow{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px 110px}
+
+  /* ---------- hero ---------- */
+  header{text-align:center;color:var(--cream);padding:18px 6px 6px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .chip-btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:var(--cream);
+    border-radius:999px;padding:9px 14px;font:700 14px Nunito,system-ui,sans-serif;cursor:pointer;display:inline-flex;gap:7px;align-items:center;backdrop-filter:blur(6px)}
+  .chip-btn:hover{background:rgba(255,255,255,.14)}
+  .countdown{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);font-weight:800}
+  .ornament{width:74px;height:92px;margin:14px auto 0;display:block;animation:swing 4s ease-in-out infinite;transform-origin:50% 0}
+  @keyframes swing{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+  h1{font-family:Fraunces,serif;font-weight:600;font-style:italic;font-size:clamp(40px,9vw,72px);line-height:1;margin:8px 0 6px;letter-spacing:-.01em}
+  h1 span{display:block;font-style:normal;font-weight:700;font-size:.42em;letter-spacing:.24em;text-transform:uppercase;color:var(--gold2);margin-bottom:10px}
+  .sub{max-width:520px;margin:0 auto;color:rgba(251,246,236,.78);font-size:16px;line-height:1.5}
+
+  /* garland progress */
+  .garland{margin:26px auto 8px;max-width:640px;position:relative;height:46px}
+  .garland svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .bulbs{position:absolute;inset:0;display:flex;justify-content:space-between;padding:0 4%}
+  .bulb{width:14px;height:20px;border-radius:50% 50% 45% 45%;margin-top:calc(var(--y) * 1px);position:relative;background:#3b4a44;transition:all .5s}
+  .bulb::before{content:"";position:absolute;top:-5px;left:3px;width:8px;height:6px;border-radius:2px;background:#8a8a7a}
+  .bulb.on{background:var(--c);box-shadow:0 0 14px 3px var(--c),0 0 3px var(--c)}
+  .progress-txt{color:var(--cream);font-weight:700;font-size:15px}
+  .progress-txt b{color:var(--gold2)}
+
+  /* toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:22px 0 18px}
+  .seg{display:inline-flex;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px}
+  .seg button{border:0;background:none;color:rgba(251,246,236,.8);font:700 14px Nunito,system-ui,sans-serif;padding:8px 16px;border-radius:999px;cursor:pointer}
+  .seg button.act{background:var(--cream);color:var(--night)}
+  .seg button .n{opacity:.6;font-weight:800;margin-left:4px}
+
+  /* ---------- cards ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px}
+  .card{position:relative;background:var(--paper);border-radius:var(--r);padding:20px 20px 18px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:10px;overflow:hidden;animation:pop .45s cubic-bezier(.2,.9,.3,1.2) both;animation-delay:calc(var(--i) * 45ms)}
+  @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.97)}}
+  .card::before{ /* tag hole + string */
+    content:"";position:absolute;top:16px;right:18px;width:12px;height:12px;border-radius:50%;background:var(--night);box-shadow:inset 0 0 0 3px #e9dfcc}
+  .card .art{width:72px;height:72px;border-radius:20px;display:grid;place-items:center;font-size:40px;
+    background:linear-gradient(135deg,#f6ead3,#efdcb9);box-shadow:inset 0 -3px 0 rgba(0,0,0,.05);overflow:hidden;flex:none}
+  .card .art img{width:100%;height:100%;object-fit:cover}
+  .card .head{display:flex;gap:14px;align-items:center;padding-right:18px}
+  .prio{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--berry);background:#fbe4e2;border-radius:999px;padding:3px 9px;margin-bottom:6px}
+  .card h3{font-family:Fraunces,serif;font-weight:600;font-size:21px;line-height:1.18;margin:0;position:relative;display:inline}
+  .card p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pill{font-size:13px;font-weight:800;background:#f1e7d4;color:#6b5a3e;border-radius:999px;padding:4px 10px}
+  .link{font-size:14px;font-weight:700;color:var(--pine);text-decoration:none;border-bottom:1.5px solid rgba(31,77,61,.25)}
+  .link:hover{border-color:var(--pine)}
+  .qty{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--muted)}
+  .qty .bar{flex:1;height:6px;border-radius:9px;background:#eee3cf;overflow:hidden}
+  .qty .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--berry),var(--gold));border-radius:9px;transition:width .5s}
+  .givers{display:flex;flex-wrap:wrap;gap:6px}
+  .giver{display:inline-flex;align-items:center;gap:6px;background:#e6f0ea;color:#1f4d3d;font-weight:800;font-size:13px;border-radius:999px;padding:5px 6px 5px 10px}
+  .giver button{border:0;background:#fff;color:var(--berry);font:800 12px Nunito,system-ui,sans-serif;border-radius:999px;padding:3px 9px;cursor:pointer}
+  .giver.solo{padding-right:10px}
+  .spacer{flex:1}
+  .btn{border:0;border-radius:16px;padding:14px 16px;font:800 16px Nunito,system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;transition:transform .12s, box-shadow .2s, background .2s}
+  .btn:active{transform:scale(.97)}
+  .btn-gift{background:linear-gradient(180deg,var(--berry2),var(--berry));color:#fff;box-shadow:0 8px 18px -8px rgba(184,50,58,.8), inset 0 1px 0 rgba(255,255,255,.25)}
+  .btn-gift:hover{box-shadow:0 10px 22px -8px rgba(184,50,58,1), inset 0 1px 0 rgba(255,255,255,.25)}
+  .btn-ghost{background:#f1e7d4;color:#6b5a3e}
+  .btn-dark{background:var(--night);color:var(--cream)}
+  .btn[disabled]{opacity:.55;cursor:default}
+
+  /* reserved state */
+  .card.done{background:#f4efe6}
+  .card.done .art{filter:grayscale(.5);opacity:.75}
+  .card.done h3{text-decoration:line-through;text-decoration-color:var(--berry);text-decoration-thickness:3px;color:#5d534b}
+  .card.done::before{display:none}
+  .stamp{position:absolute;top:22px;right:-36px;transform:rotate(35deg);background:var(--berry);color:#fff;font:800 12px Nunito,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:6px 44px;box-shadow:0 4px 10px -4px rgba(0,0,0,.4)}
+  .card.mine{outline:3px solid var(--gold);outline-offset:-3px}
+
+  /* admin bits */
+  .admin-row{display:flex;gap:6px;border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
+  .admin-row button{flex:1;border:0;background:#f1e7d4;color:#6b5a3e;border-radius:12px;padding:9px;font:800 13px Nunito,system-ui,sans-serif;cursor:pointer}
+  .admin-row button.del{color:var(--berry)}
+  .add-card{border:2px dashed rgba(251,246,236,.35);background:rgba(255,255,255,.04);color:var(--cream);border-radius:var(--r);min-height:200px;display:grid;place-items:center;cursor:pointer;font:800 17px Nunito,system-ui,sans-serif;gap:6px;text-align:center}
+  .add-card:hover{background:rgba(255,255,255,.08)}
+  .add-card big{font-size:40px;display:block}
+  .admin-bar{position:sticky;top:10px;z-index:5;margin:0 auto 16px;max-width:560px;background:var(--gold2);color:#4a3712;border-radius:16px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;box-shadow:var(--shadow)}
+  .admin-bar button{border:0;background:#4a3712;color:var(--gold2);border-radius:10px;padding:7px 12px;font:800 13px Nunito,system-ui,sans-serif;cursor:pointer}
+
+  .empty{color:rgba(251,246,236,.75);text-align:center;padding:40px 10px;font-size:17px;grid-column:1/-1}
+  .skeleton{height:230px;border-radius:var(--r);background:linear-gradient(100deg,rgba(255,255,255,.05) 30%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 70%);background-size:300% 100%;animation:sh 1.4s infinite}
+  @keyframes sh{to{background-position:-150% 0}}
+
+  footer{color:rgba(251,246,236,.55);text-align:center;font-size:13px;margin-top:40px;line-height:1.8}
+  footer button{background:none;border:0;color:rgba(251,246,236,.7);font:700 13px Nunito,system-ui,sans-serif;text-decoration:underline;cursor:pointer}
+  .sync{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#5fd38d;box-shadow:0 0 8px #5fd38d}
+  .dot.off{background:#d9a24b;box-shadow:0 0 8px #d9a24b}
+  .demo{background:#fff3cd;color:#6b4e00;border-radius:14px;padding:10px 14px;font-size:14px;font-weight:700;text-align:center;margin:12px auto 0;max-width:560px}
+
+  /* ---------- sheet / modal ---------- */
+  .veil{position:fixed;inset:0;background:rgba(5,15,12,.6);backdrop-filter:blur(4px);z-index:20;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+  .veil.open{opacity:1;pointer-events:auto}
+  .sheet{background:var(--paper);width:100%;max-width:520px;border-radius:28px 28px 0 0;padding:22px 22px max(22px,env(safe-area-inset-bottom));transform:translateY(40px);transition:transform .3s cubic-bezier(.2,.9,.3,1.1);max-height:92vh;overflow:auto}
+  .veil.open .sheet{transform:none}
+  @media(min-width:640px){.veil{align-items:center}.sheet{border-radius:28px}}
+  .sheet .grab{width:44px;height:5px;border-radius:9px;background:#e2d6c1;margin:-6px auto 14px}
+  .sheet h2{font-family:Fraunces,serif;font-weight:600;font-size:26px;margin:0 0 6px}
+  .sheet .lead{color:var(--muted);margin:0 0 16px;line-height:1.5}
+  .sheet .gift-preview{display:flex;gap:12px;align-items:center;background:#f6eedf;border-radius:16px;padding:12px;margin-bottom:16px}
+  .sheet .gift-preview .art{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:28px;background:#efdcb9;overflow:hidden;flex:none}
+  .sheet .gift-preview .art img{width:100%;height:100%;object-fit:cover}
+  label{display:block;font-weight:800;font-size:13px;color:#6b5a3e;margin:12px 0 6px}
+  input,textarea{width:100%;border:1.5px solid #e6dac4;background:#fff;border-radius:14px;padding:13px 14px;font:600 16px Nunito,system-ui,sans-serif;color:var(--ink);outline:none;transition:border .2s}
+  input:focus,textarea:focus{border-color:var(--pine)}
+  textarea{min-height:80px;resize:vertical}
+  .row{display:flex;gap:10px}
+  .row > *{flex:1}
+  .hint{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.4}
+  .emojis{display:flex;flex-wrap:wrap;gap:6px}
+  .emojis button{width:42px;height:42px;border-radius:12px;border:1.5px solid #e6dac4;background:#fff;font-size:22px;cursor:pointer}
+  .emojis button.act{border-color:var(--berry);background:#fbe4e2}
+  .check{display:flex;align-items:center;gap:10px;font-weight:700;margin-top:14px;cursor:pointer}
+  .check input{width:22px;height:22px;accent-color:var(--berry)}
+  .actions{display:flex;gap:10px;margin-top:20px}
+
+  .toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translate(-50%,30px);background:var(--night);color:var(--cream);padding:13px 18px;border-radius:16px;font-weight:700;box-shadow:var(--shadow);z-index:40;opacity:0;pointer-events:none;transition:all .3s;max-width:90vw;text-align:center;border:1px solid rgba(255,255,255,.12)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .burst{position:fixed;pointer-events:none;z-index:50;font-size:22px;animation:fly 1.1s ease-out forwards}
+  @keyframes fly{to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.6);opacity:0}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="snow"></canvas>
+<div class="wrap">
+  <header>
+    <div class="topbar">
+      <span class="countdown" id="countdown"></span>
+      <button class="chip-btn" id="shareBtn" aria-label="Dalintis nuoroda">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+        Dalintis
+      </button>
+    </div>
+    <svg class="ornament" viewBox="0 0 74 92" aria-hidden="true">
+      <line x1="37" y1="0" x2="37" y2="14" stroke="#d8a94b" stroke-width="2"/>
+      <rect x="29" y="12" width="16" height="10" rx="3" fill="#d8a94b"/>
+      <circle cx="37" cy="56" r="33" fill="url(#g1)"/>
+      <path d="M8 50 Q37 62 66 50" stroke="#f2cf7c" stroke-width="3" fill="none" opacity=".9"/>
+      <path d="M6 62 Q37 74 68 62" stroke="#f2cf7c" stroke-width="2" fill="none" opacity=".6"/>
+      <circle cx="24" cy="40" r="7" fill="#fff" opacity=".35"/>
+      <defs><radialGradient id="g1" cx="35%" cy="30%"><stop offset="0" stop-color="#e5555c"/><stop offset="1" stop-color="#8f1f27"/></radialGradient></defs>
+    </svg>
+    <h1><span>Pirmosios</span>Liepos Kalėdos</h1>
+    <p class="sub">Čia – mažosios Liepos norų sąrašas. Išsirinkite dovaną ir paspauskite <b>„Dovanosiu aš“</b> – visi matys, kas jau išrinkta, kad niekas nepirktų to paties. 🎄</p>
+    <div id="demoNote"></div>
+    <div class="garland" aria-hidden="true">
+      <svg viewBox="0 0 100 46" preserveAspectRatio="none"><path id="wire" d="M0 6 Q25 34 50 10 T100 6" stroke="#5c6b5f" stroke-width=".6" fill="none" vector-effect="non-scaling-stroke"/></svg>
+      <div class="bulbs" id="bulbs"></div>
+    </div>
+    <div class="progress-txt" id="progressTxt">&nbsp;</div>
+  </header>
+
+  <div id="adminBar"></div>
+
+  <div class="toolbar">
+    <div class="seg" role="tablist" id="filters">
+      <button data-f="all" class="act">Visi<span class="n" id="nAll"></span></button>
+      <button data-f="free">Laisvi<span class="n" id="nFree"></span></button>
+      <button data-f="taken">Išrinkti<span class="n" id="nTaken"></span></button>
+    </div>
+  </div>
+
+  <main class="grid" id="grid">
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </main>
+
+  <footer>
+    <div class="sync" id="sync"><span class="dot"></span> Sąrašas atnaujinamas automatiškai</div><br>
+    Su meile – Liepa ir jos tėveliai 🤍<br>
+    <button id="adminBtn">Tėvams</button>
+  </footer>
+</div>
+
+<!-- reserve sheet -->
+<div class="veil" id="resVeil">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="resTitle">
+    <div class="grab"></div>
+    <h2 id="resTitle">Dovanosite? 🎁</h2>
+    <div class="gift-preview" id="resPreview"></div>
+    <label for="resName">Jūsų vardas</label>
+    <input id="resName" maxlength="40" placeholder="pvz. Teta Rūta" autocomplete="name">
+    <p class="hint">Vardas bus matomas visiems sąrašo lankytojams – taip kiti žinos, kad šią dovaną jau kažkas perka. Persigalvojus galėsite atšaukti iš šio įrenginio.</p>
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Atšaukti</button>
+      <button class="btn btn-gift" id="resOk">Taip, dovanosiu</button>
+    </div>
+  </div>
+</div>
+
+<!-- pin sheet -->
+<div class="veil" id="pinVeil">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <h2>Tėvų režimas</h2>
+    <p class="lead">Įveskite PIN kodą, kad galėtumėte pridėti, keisti ar trinti norus.</p>
+    <input id="pinInput" inputmode="numeric" type="password" placeholder="PIN" maxlength="12">
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Uždaryti</button>
+      <button class="btn btn-dark" id="pinOk">Prisijungti</button>
+    </div>
+  </div>
+</div>
+
+<!-- edit sheet -->
+<div class="veil" id="editVeil">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="grab"></div>
+    <h2 id="editTitle">Naujas noras</h2>
+    <label>Paveikslėlis</label>
+    <div class="emojis" id="emojiPick"></div>
+    <label for="fTitle">Pavadinimas</label>
+    <input id="fTitle" maxlength="120" placeholder="pvz. Minkšta knygelė">
+    <label for="fDesc">Aprašymas</label>
+    <textarea id="fDesc" maxlength="500" placeholder="Dydis, spalva, kuo ypatinga…"></textarea>
+    <div class="row">
+      <div><label for="fPrice">Kaina</label><input id="fPrice" maxlength="30" placeholder="~15 €"></div>
+      <div><label for="fQty">Kiek reikia</label><input id="fQty" type="number" min="1" max="50" value="1"></div>
+    </div>
+    <label for="fLink">Nuoroda į parduotuvę (nebūtina)</label>
+    <input id="fLink" type="url" placeholder="https://…">
+    <label for="fImg">Nuotraukos adresas (nebūtina)</label>
+    <input id="fImg" type="url" placeholder="https://…/nuotrauka.jpg">
+    <label class="check"><input type="checkbox" id="fPrio"> ⭐ Labiausiai norėtų</label>
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Atšaukti</button>
+      <button class="btn btn-dark" id="editOk">Išsaugoti</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== Nustatymai ====== */
+const API = '';   // Google Apps Script /exec adresas (žr. backend/Code.gs). Tuščias = demonstracinis režimas.
+const POLL_MS = 15000;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+
+let items = [], filter = 'all', loaded = false, busy = false;
+let pin = LS.get('lk_pin', '');
+let mine = LS.get('lk_mine', {});          // rid -> token
+let myTok = LS.get('lk_tok', '');
+if (!myTok) { myTok = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)); LS.set('lk_tok', myTok); }
+
+/* ====== Demo (be serverio) ====== */
+const SEED = [
+  ['🧸','Lavinamasis kilimėlis su lankeliais','Minkštas kilimėlis su kabančiais žaisliukais – gulėti ant pilvuko ir tyrinėti.','40–60 €',1,1],
+  ['📖','Minkšta medžiaginė knygelė','Šiugždanti, kontrastinga, su skirtingomis tekstūromis. Tinka ir graužti 🙂','10–15 €',2,0],
+  ['🦷','Silikoninis kramtukas dantukams','Lengvai suimamas, be BPA, galima šaldyti.','6–10 €',1,1],
+  ['🥣','Pirmojo maitinimo rinkinys','Silikoninis dubenėlis su prisiurbtuku, minkšti šaukšteliai ir seilinukas – košėms ir pirmiesiems skoniams.','15–25 €',1,1],
+  ['🛁','Vonios žaislai','Plūduriuojantys gyvūnėliai ar puodeliai pilstymui – maudynėms smagiau.','8–15 €',1,0],
+  ['🌙','Žieminis miegmaišis','Šiltas miegmaišis (apie 2.5 TOG), dydis 6–18 mėn.','30–45 €',1,0],
+  ['🎵','Lietuviškų lopšinių ar eilėraščių knygelė','Kartoninė knygelė su lietuviškomis lopšinėmis ar eilėraštukais vakarams.','8–12 €',1,0],
+  ['❄️','Žieminis kombinezonas','Šiltas kombinezonas pasivaikščiojimams, 80 dydžio.','35–60 €',1,0],
+  ['🐷','Indėlis į Liepos taupyklę','Ateities svajonėms – pirmam dviračiui ar kelionei. Galima prisidėti keliems.','bet kiek',10,0]
+].map((s,i) => ({ id:'d'+i, emoji:s[0], title:s[1], desc:s[2], price:s[3], qty:s[4], prio:s[5], link:'', img:'', order:i, res:[] }));
+const DEMO_PIN = '1234';
+const demo = {
+  load(){ return LS.get('lk_demo', null) || JSON.parse(JSON.stringify(SEED)); },
+  save(d){ LS.set('lk_demo', d); },
+  handle(b){
+    const d = this.load(); const it = d.find(x => x.id === b.id); const admin = b.pin === DEMO_PIN;
+    const list = () => ({ ok:true, items: d.slice().sort((a,b)=>a.order-b.order).map(x => ({...x, res:x.res.map(r=>({rid:r.rid,name:r.name,ts:r.ts}))})) });
+    if (b.a === 'list') return list();
+    if (b.a === 'check') return { ok: admin };
+    if (b.a === 'reserve') {
+      if (!it) return { ok:false, error:'not_found' };
+      if (it.res.length >= it.qty) return { ...list(), ok:false, error:'taken' };
+      const rid = 'r'+Date.now().toString(36); it.res.push({ rid, name: b.name || 'Slaptas Kalėdų senelis', ts: Date.now(), tok: b.tok });
+      this.save(d); return { ...list(), rid };
+    }
+    if (b.a === 'unreserve') {
+      const r = it && it.res.find(r => r.rid === b.rid);
+      if (r && (admin || r.tok === b.tok)) { it.res = it.res.filter(q => q !== r); this.save(d); return list(); }
+      return { ok:false, error:'forbidden' };
+    }
+    if (!admin) return { ok:false, error:'unauthorized' };
+    if (b.a === 'save') {
+      const s = b.item; const cur = d.find(x => x.id === s.id);
+      const obj = Object.assign(cur || { id:'d'+Date.now(), res:[], order: d.length }, { title:s.title||'Noras', desc:s.desc, price:s.price, link:s.link, img:s.img, emoji:s.emoji||'🎁', qty:Math.max(1,+s.qty||1), prio:s.prio?1:0 });
+      if (!cur) d.push(obj); this.save(d); return list();
+    }
+    if (b.a === 'delete') { const k = d.findIndex(x => x.id === b.id); if (k>=0) d.splice(k,1); this.save(d); return list(); }
+    if (b.a === 'move') { d.forEach(x => { const k = b.ids.indexOf(x.id); if (k>=0) x.order = k; }); this.save(d); return list(); }
+    return { ok:false };
+  }
+};
+
+/* ====== Serveris ====== */
+async function api(body){
+  if (!API) { await new Promise(r => setTimeout(r, 250)); return demo.handle(body); }
+  if (body.a === 'list') {
+    const r = await fetch(API + '?t=' + Date.now(), { cache:'no-store' });
+    return r.json();
+  }
+  const r = await fetch(API, { method:'POST', body: JSON.stringify(body) });  // text/plain → be CORS preflight
+  return r.json();
+}
+
+function setSync(ok){
+  $('#sync').innerHTML = ok
+    ? '<span class="dot"></span> Sąrašas atnaujinamas automatiškai'
+    : '<span class="dot off"></span> Nepavyko prisijungti – bandysime dar kartą';
+}
+
+async function refresh(){
+  if (busy) return;
+  try {
+    const res = await api({ a:'list' });
+    if (res && res.ok) { items = res.items || []; loaded = true; render(); setSync(true); }
+  } catch(e) { setSync(false); if (!loaded) $('#grid').innerHTML = '<div class="empty">Nepavyko įkelti sąrašo. Patikrinkite interneto ryšį ir perkraukite puslapį.</div>'; }
+}
+
+/* ====== Atvaizdavimas ====== */
+const BULB_COLORS = ['#ff5a5f','#f2cf7c','#5fd38d','#6db8ff','#ff9ad5'];
+function render(){
+  const total = items.reduce((s,it) => s + (it.qty||1), 0);
+  const taken = items.reduce((s,it) => s + Math.min(it.res.length, it.qty||1), 0);
+  const full = it => it.res.length >= (it.qty||1);
+  const nFree = items.filter(it => !full(it)).length;
+  $('#nAll').textContent = items.length; $('#nFree').textContent = nFree; $('#nTaken').textContent = items.length - nFree;
+
+  // garland
+  const N = Math.min(Math.max(items.length, 6), 14);
+  const lit = !total || !taken ? 0 : taken >= total ? N : Math.max(1, Math.min(N - 1, Math.round(taken / total * N)));
+  $('#bulbs').innerHTML = Array.from({length:N}, (_,i) => {
+    const t = i/(N-1), y = garlandY(t);
+    return `<span class="bulb ${i < lit ? 'on':''}" style="--y:${y};--c:${BULB_COLORS[i%BULB_COLORS.length]}"></span>`;
+  }).join('');
+  $('#progressTxt').innerHTML = !items.length ? '&nbsp;' : taken >= total
+    ? '✨ Visi norai išrinkti! Ačiū jums visiems ✨'
+    : `Išrinkta <b>${taken}</b> iš <b>${total}</b> dovanų`;
+
+  const admin = !!pin;
+  $('#adminBar').innerHTML = admin ? `<div class="admin-bar">✏️ Tėvų režimas <button id="logout">Baigti</button></div>` : '';
+  if (admin) $('#logout').onclick = () => { pin=''; LS.set('lk_pin',''); render(); toast('Tėvų režimas išjungtas'); };
+
+  let list = items;
+  if (filter === 'free') list = items.filter(it => !full(it));
+  if (filter === 'taken') list = items.filter(it => it.res.length > 0);
+
+  let html = list.map((it, i) => {
+    const qty = it.qty || 1, n = it.res.length, isFull = n >= qty;
+    const iAmIn = it.res.some(r => mine[r.rid]);
+    const art = it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${esc(it.emoji||'🎁')}'))">` : esc(it.emoji || '🎁');
+    const givers = it.res.map(r => {
+      const can = mine[r.rid] || admin;
+      return `<span class="giver ${can?'':'solo'}">🎁 ${esc(r.name)}${can ? ` <button data-un="${esc(it.id)}|${esc(r.rid)}">${mine[r.rid] ? 'Atšaukti' : '✕'}</button>` : ''}</span>`;
+    }).join('');
+    let btn;
+    if (isFull) btn = `<button class="btn btn-ghost" disabled>${iAmIn ? '💛 Jūs dovanojate' : '✓ Jau išrinkta'}</button>`;
+    else if (iAmIn && qty > 1) btn = `<button class="btn btn-gift" data-res="${esc(it.id)}">🎁 Dovanosiu dar vieną</button>`;
+    else btn = `<button class="btn btn-gift" data-res="${esc(it.id)}">🎁 Dovanosiu aš</button>`;
+    return `<article class="card ${isFull?'done':''} ${iAmIn?'mine':''}" style="--i:${i}">
+      ${isFull ? '<div class="stamp">Išrinkta</div>' : ''}
+      <div class="head"><div class="art">${art}</div>
+        <div>${it.prio ? '<div class="prio">⭐ Labiausiai norėtų</div>' : ''}<h3>${esc(it.title)}</h3></div></div>
+      ${it.desc ? `<p>${esc(it.desc)}</p>` : ''}
+      <div class="meta">${it.price ? `<span class="pill">${esc(it.price)}</span>` : ''}${it.link ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Kur nupirkti ↗</a>` : ''}</div>
+      ${qty > 1 ? `<div class="qty"><span>${n} iš ${qty}</span><span class="bar"><i style="width:${Math.min(100,n/qty*100)}%"></i></span></div>` : ''}
+      ${givers ? `<div class="givers">${givers}</div>` : ''}
+      <div class="spacer"></div>
+      ${btn}
+      ${admin ? `<div class="admin-row"><button data-up="${esc(it.id)}" aria-label="Aukštyn">↑</button><button data-down="${esc(it.id)}" aria-label="Žemyn">↓</button><button data-edit="${esc(it.id)}">Keisti</button><button class="del" data-del="${esc(it.id)}">Trinti</button></div>` : ''}
+    </article>`;
+  }).join('');
+  if (admin) html += `<button class="add-card" id="addBtn"><div><big>＋</big>Pridėti norą</div></button>`;
+  if (!html) html = `<div class="empty">${filter === 'taken' ? 'Kol kas niekas neišrinkta – būkite pirmas! 🎁' : filter === 'free' ? 'Visi norai jau išrinkti 🎉' : 'Sąrašas kol kas tuščias.'}</div>`;
+  $('#grid').innerHTML = html;
+  if (admin) $('#addBtn').onclick = () => openEdit(null);
+}
+function garlandY(t){ // follows the wire path roughly (0..46 px)
+  const q = (a,b,c,u) => (1-u)*(1-u)*a + 2*(1-u)*u*b + u*u*c;
+  return t < .5 ? q(6,34,10,t*2) - 4 : q(10,-14,6,(t-.5)*2) - 4;
+}
+
+/* ====== Veiksmai ====== */
+$('#grid').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.res) openReserve(b.dataset.res, b);
+  else if (b.dataset.un) { const [id, rid] = b.dataset.un.split('|'); unreserve(id, rid); }
+  else if (b.dataset.edit) openEdit(items.find(x => x.id === b.dataset.edit));
+  else if (b.dataset.del) delItem(b.dataset.del);
+  else if (b.dataset.up) move(b.dataset.up, -1);
+  else if (b.dataset.down) move(b.dataset.down, 1);
+});
+
+let resId = null, resBtn = null;
+function openReserve(id, btn){
+  const it = items.find(x => x.id === id); if (!it) return;
+  resId = id; resBtn = btn;
+  $('#resPreview').innerHTML = `<div class="art">${it.img ? `<img src="${esc(it.img)}" alt="">` : esc(it.emoji||'🎁')}</div><div><b>${esc(it.title)}</b>${it.price ? `<div class="hint" style="margin:2px 0 0">${esc(it.price)}</div>` : ''}</div>`;
+  $('#resName').value = LS.get('lk_name', '');
+  openVeil('#resVeil'); setTimeout(() => $('#resName').focus(), 250);
+}
+$('#resOk').onclick = async () => {
+  const name = $('#resName').value.trim();
+  if (!name) { $('#resName').focus(); $('#resName').style.borderColor = 'var(--berry)'; toast('Įrašykite savo vardą 🙂'); return; }
+  $('#resName').style.borderColor = '';
+  LS.set('lk_name', name);
+  const btn = $('#resOk'); btn.disabled = true; btn.textContent = 'Saugoma…';
+  busy = true;
+  try {
+    const res = await api({ a:'reserve', id: resId, name, tok: myTok });
+    if (res.rid) { mine[res.rid] = 1; LS.set('lk_mine', mine); }
+    if (res.items) items = res.items;
+    closeVeils(); render();
+    if (res.ok) { burst(resBtn); toast(`Ačiū, ${name}! Liepa bus labai laiminga 🤍`); }
+    else toast(res.error === 'taken' ? 'Oi, šią dovaną ką tik išsirinko kažkas kitas 🙈' : 'Nepavyko išsaugoti, pabandykite dar kartą');
+  } catch(e) { toast('Nepavyko prisijungti, pabandykite dar kartą'); }
+  busy = false; btn.disabled = false; btn.textContent = 'Taip, dovanosiu';
+};
+$('#resName').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resOk').click(); });
+
+async function unreserve(id, rid){
+  const it = items.find(x => x.id === id); const r = it && it.res.find(r => r.rid === rid);
+  if (!r) return;
+  const msg = mine[rid] ? `Atšaukti jūsų pasirinkimą „${it.title}“?` : `Pašalinti ${r.name} rezervaciją „${it.title}“?`;
+  if (!confirm(msg)) return;
+  busy = true;
+  try {
+    const res = await api({ a:'unreserve', id, rid, tok: myTok, pin });
+    if (res.items) { items = res.items; delete mine[rid]; LS.set('lk_mine', mine); render(); toast('Pasirinkimas atšauktas'); }
+    else toast('Nepavyko atšaukti');
+  } catch(e) { toast('Nepavyko prisijungti'); }
+  busy = false;
+}
+
+/* tėvų režimas */
+$('#adminBtn').onclick = () => { if (pin) { toast('Tėvų režimas jau įjungtas'); return; } $('#pinInput').value=''; openVeil('#pinVeil'); setTimeout(()=>$('#pinInput').focus(),250); };
+$('#pinOk').onclick = async () => {
+  const p = $('#pinInput').value.trim(); if (!p) return;
+  try {
+    const res = await api({ a:'check', pin:p });
+    if (res.ok) { pin = p; LS.set('lk_pin', p); closeVeils(); render(); toast('Sveiki! Galite redaguoti norus ✏️'); }
+    else toast('Neteisingas PIN');
+  } catch(e) { toast('Nepavyko prisijungti'); }
+};
+$('#pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#pinOk').click(); });
+
+const EMOJIS = ['🎁','🧸','📖','🦷','🥣','🛁','🌙','🎵','❄️','🐷','🧦','👶','🍼','🎈','🦒','🐰','🧩','🚂','🌟','💝'];
+let editing = null, pickEmoji = '🎁';
+function openEdit(it){
+  editing = it ? it.id : null; pickEmoji = (it && it.emoji) || '🎁';
+  $('#editTitle').textContent = it ? 'Keisti norą' : 'Naujas noras';
+  $('#fTitle').value = it ? it.title : ''; $('#fDesc').value = it ? (it.desc||'') : '';
+  $('#fPrice').value = it ? (it.price||'') : ''; $('#fQty').value = it ? (it.qty||1) : 1;
+  $('#fLink').value = it ? (it.link||'') : ''; $('#fImg').value = it ? (it.img||'') : '';
+  $('#fPrio').checked = !!(it && it.prio);
+  const list = EMOJIS.includes(pickEmoji) ? EMOJIS : [pickEmoji, ...EMOJIS];
+  $('#emojiPick').innerHTML = list.map(e => `<button type="button" class="${e===pickEmoji?'act':''}">${e}</button>`).join('');
+  openVeil('#editVeil');
+}
+$('#emojiPick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  pickEmoji = b.textContent; [...$('#emojiPick').children].forEach(x => x.classList.toggle('act', x === b));
+});
+$('#editOk').onclick = async () => {
+  const title = $('#fTitle').value.trim(); if (!title) { $('#fTitle').focus(); toast('Įrašykite pavadinimą'); return; }
+  const item = { id: editing, title, desc: $('#fDesc').value.trim(), price: $('#fPrice').value.trim(), qty: +$('#fQty').value || 1,
+    link: $('#fLink').value.trim(), img: $('#fImg').value.trim(), emoji: pickEmoji, prio: $('#fPrio').checked };
+  const btn = $('#editOk'); btn.disabled = true; busy = true;
+  try {
+    const res = await api({ a:'save', pin, item });
+    if (res.items) { items = res.items; closeVeils(); render(); toast(editing ? 'Pakeista ✓' : 'Noras pridėtas 🎄'); }
+    else if (res.error === 'unauthorized') { pin=''; LS.set('lk_pin',''); closeVeils(); render(); toast('PIN nebetinka – prisijunkite iš naujo'); }
+    else toast('Nepavyko išsaugoti');
+  } catch(e) { toast('Nepavyko prisijungti'); }
+  btn.disabled = false; busy = false;
+};
+async function delItem(id){
+  const it = items.find(x => x.id === id);
+  if (!confirm(`Ištrinti „${it.title}“?${it.res.length ? ' Šią dovaną jau kažkas išsirinko!' : ''}`)) return;
+  busy = true;
+  try { const res = await api({ a:'delete', pin, id }); if (res.items) { items = res.items; render(); toast('Ištrinta'); } } catch(e) { toast('Nepavyko'); }
+  busy = false;
+}
+async function move(id, dir){
+  const ids = items.map(x => x.id); const k = ids.indexOf(id), j = k + dir;
+  if (j < 0 || j >= ids.length) return;
+  [ids[k], ids[j]] = [ids[j], ids[k]];
+  items = ids.map(x => items.find(y => y.id === x)); render();
+  busy = true;
+  try { const res = await api({ a:'move', pin, ids }); if (res.items) { items = res.items; render(); } } catch(e) {}
+  busy = false;
+}
+
+/* ====== Bendri UI ====== */
+function openVeil(s){ $(s).classList.add('open'); }
+function closeVeils(){ document.querySelectorAll('.veil').forEach(v => v.classList.remove('open')); }
+document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v || e.target.closest('[data-close]')) closeVeils(); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVeils(); });
+
+let tt; function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 3200); }
+
+function burst(el){
+  const r = (el && el.getBoundingClientRect && el.getBoundingClientRect().width) ? el.getBoundingClientRect() : { left: innerWidth/2, top: innerHeight/2, width:0, height:0 };
+  const x = r.left + r.width/2, y = r.top + r.height/2;
+  const set = ['✨','❄️','🎁','⭐','🤍','🎄'];
+  for (let i=0;i<22;i++){
+    const s = document.createElement('span'); s.className='burst'; s.textContent = set[i%set.length];
+    const a = Math.random()*Math.PI*2, d = 70 + Math.random()*120;
+    s.style.left = x+'px'; s.style.top = y+'px';
+    s.style.setProperty('--dx', Math.cos(a)*d+'px'); s.style.setProperty('--dy', (Math.sin(a)*d - 60)+'px'); s.style.setProperty('--rot', (Math.random()*360-180)+'deg');
+    document.body.appendChild(s); setTimeout(() => s.remove(), 1200);
+  }
+}
+
+$('#filters').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filter = b.dataset.f; [...$('#filters').children].forEach(x => x.classList.toggle('act', x === b)); render();
+});
+
+$('#shareBtn').onclick = async () => {
+  const url = location.href.split('#')[0].split('?')[0];
+  const data = { title: 'Liepos Kalėdų norai 🎄', text: 'Liepos pirmųjų Kalėdų norų sąrašas – išsirinkite dovaną 🎁', url };
+  if (navigator.share) { try { await navigator.share(data); } catch(e) {} return; }
+  try { await navigator.clipboard.writeText(url); toast('Nuoroda nukopijuota 📋'); } catch(e) { prompt('Nukopijuokite nuorodą:', url); }
+};
+
+function countdown(){
+  const now = new Date(), y = now.getMonth() === 11 && now.getDate() > 26 ? now.getFullYear()+1 : now.getFullYear();
+  const kucios = new Date(y, 11, 24), d = Math.ceil((kucios - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+  $('#countdown').textContent = d > 1 ? `Iki Kūčių – ${d} d.` : d === 1 ? 'Rytoj Kūčios! 🌟' : d === 0 ? 'Šiandien Kūčios ✨' : 'Linksmų Kalėdų! 🎄';
+}
+
+/* sniegas */
+(function snow(){
+  const c = $('#snow'), x = c.getContext('2d'); let W, H, flakes;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  function size(){ W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; c.style.width = innerWidth+'px'; c.style.height = innerHeight+'px';
+    const n = Math.min(140, Math.round(innerWidth/9)); flakes = Array.from({length:n}, () => ({ x:Math.random()*W, y:Math.random()*H, r:(Math.random()*2.2+.6)*devicePixelRatio, s:Math.random()*.6+.25, o:Math.random()*.6+.25, p:Math.random()*6 })); }
+  size(); addEventListener('resize', size);
+  (function tick(t){
+    x.clearRect(0,0,W,H);
+    for (const f of flakes){
+      f.y += f.s*devicePixelRatio; f.x += Math.sin(t/1600 + f.p)*.35*devicePixelRatio;
+      if (f.y > H+5) { f.y = -5; f.x = Math.random()*W; }
+      x.beginPath(); x.arc(f.x, f.y, f.r, 0, 7); x.fillStyle = `rgba(255,255,255,${f.o})`; x.fill();
+    }
+    requestAnimationFrame(tick);
+  })(0);
+})();
+
+if (!API) $('#demoNote').innerHTML = `<div class="demo">Demonstracinis režimas – pasirinkimai saugomi tik šiame įrenginyje. Tėvų PIN: ${DEMO_PIN}</div>`;
+countdown(); refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+</script>
+</body>
+</html>
