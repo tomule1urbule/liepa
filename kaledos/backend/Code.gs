@@ -73,6 +73,32 @@ function list_(sh) {
   return { ok: true, now: Date.now(), items: items };
 }
 
+/** Product photo from a shop page: og:image / twitter:image / JSON-LD image. '' if none. */
+function photoFrom_(url) {
+  if (!/^https?:\/\//i.test(url || '')) return '';
+  try {
+    const res = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true, followRedirects: true, validateHttpsCertificates: false,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36', 'Accept-Language': 'lt,en;q=0.8' }
+    });
+    if (res.getResponseCode() >= 400) return '';
+    const html = res.getContentText().slice(0, 600000);
+    const meta = (key) => {
+      const re1 = new RegExp('<meta[^>]+(?:property|name)=["\']' + key + '["\'][^>]*content=["\']([^"\']+)', 'i');
+      const re2 = new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' + key + '["\']', 'i');
+      const m = html.match(re1) || html.match(re2); return m ? m[1] : '';
+    };
+    let img = meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') || meta('twitter:image:src');
+    if (!img) { const m = html.match(/"image"\s*:\s*(?:\[\s*)?(?:\{[^}]*?"url"\s*:\s*)?"([^"]+\.(?:jpe?g|png|webp)[^"]*)"/i); if (m) img = m[1]; }
+    if (!img) { const m = html.match(/<link[^>]+rel=["']image_src["'][^>]*href=["']([^"']+)/i); if (m) img = m[1]; }
+    if (!img) return '';
+    img = img.replace(/&amp;/g, '&').replace(/\\\//g, '/').trim();
+    if (img.indexOf('//') === 0) img = 'https:' + img;
+    else if (img.charAt(0) === '/') img = url.match(/^https?:\/\/[^\/]+/i)[0] + img;
+    return /^https?:\/\//i.test(img) ? img.slice(0, 600) : '';
+  } catch (e) { return ''; }
+}
+
 function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -124,6 +150,7 @@ function doPost(e) {
       const s = b.item || {};
       const x = s.id ? find(s.id) : null;
       const base = x ? x.it : { id: 'n' + Date.now().toString(36), res: [], order: all.reduce((m, y) => Math.max(m, y.it.order || 0), -1) + 1 };
+      const oldImg = base.img || '', oldAuto = base.imgAuto || '';
       const it = Object.assign(base, {
         title: clean_(s.title, 120) || 'Noras',
         desc: clean_(s.desc, 500),
@@ -134,9 +161,23 @@ function doPost(e) {
         qty: Math.max(1, Math.min(50, parseInt(s.qty, 10) || 1)),
         prio: s.prio ? 1 : 0
       });
+      // automatic photo: none given, or the photo came from a link that has since changed
+      const keptAuto = oldAuto && it.img === oldImg;
+      if (it.link && (!it.img || (keptAuto && oldAuto !== it.link))) {
+        const ph = photoFrom_(it.link);
+        it.img = ph || (keptAuto ? '' : it.img); it.imgAuto = ph ? it.link : '';
+      } else it.imgAuto = keptAuto ? oldAuto : '';
       if (x) sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(it)]);
       else sh.appendRow(rowOf_(it));
       return out_(list_(sh));
+    }
+
+    if (b.a === 'photos') {   // fill in missing photos for all wishes that have a link
+      let n = 0;
+      all.forEach(x => {
+        if (x.it.link && !x.it.img) { const ph = photoFrom_(x.it.link); if (ph) { x.it.img = ph; x.it.imgAuto = x.it.link; n++; sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(x.it)]); } }
+      });
+      return out_(Object.assign(list_(sh), { found: n }));
     }
 
     if (b.a === 'delete') {
