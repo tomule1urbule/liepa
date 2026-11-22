@@ -98,6 +98,9 @@
   .btn-gift{background:linear-gradient(180deg,var(--berry2),var(--berry));color:#fff;box-shadow:0 8px 18px -8px rgba(184,50,58,.8), inset 0 1px 0 rgba(255,255,255,.25)}
   .btn-gift:hover{box-shadow:0 10px 22px -8px rgba(184,50,58,1), inset 0 1px 0 rgba(255,255,255,.25)}
   .btn-ghost{background:#f1e7d4;color:#6b5a3e}
+  .btn-link{background:#fff;color:var(--pine);border:2px solid #d9e6dd;text-decoration:none;padding:12px 16px}
+  .btn-link:hover{border-color:var(--pine)}
+  .card.done .btn-link{opacity:.7}
   .btn-dark{background:var(--night);color:var(--cream)}
   .btn[disabled]{opacity:.55;cursor:default}
 
@@ -209,8 +212,7 @@
 
   <footer>
     <div class="sync" id="sync"><span class="dot"></span> Sąrašas atnaujinamas automatiškai</div><br>
-    Su meile – Liepa ir jos tėveliai 🤍<br>
-    <button id="adminBtn">Tėvams</button>
+    Su meile – Liepa ir jos tėveliai 🤍
   </footer>
 </div>
 
@@ -220,9 +222,7 @@
     <div class="grab"></div>
     <h2 id="resTitle">Dovanosite? 🎁</h2>
     <div class="gift-preview" id="resPreview"></div>
-    <label for="resName">Jūsų vardas</label>
-    <input id="resName" maxlength="40" placeholder="pvz. Teta Rūta" autocomplete="name">
-    <p class="hint">Vardas bus matomas visiems sąrašo lankytojams – taip kiti žinos, kad šią dovaną jau kažkas perka. Persigalvojus galėsite atšaukti iš šio įrenginio.</p>
+    <p class="hint">Dovana bus pažymėta kaip išrinkta – kiti tai matys ir nepirks tos pačios. Vardo nereikia. Persigalvoję galėsite atšaukti iš šio įrenginio.</p>
     <div class="actions">
       <button class="btn btn-ghost" data-close>Atšaukti</button>
       <button class="btn btn-gift" id="resOk">Taip, dovanosiu</button>
@@ -259,7 +259,7 @@
       <div><label for="fPrice">Kaina</label><input id="fPrice" maxlength="30" placeholder="~15 €"></div>
       <div><label for="fQty">Kiek reikia</label><input id="fQty" type="number" min="1" max="50" value="1"></div>
     </div>
-    <label for="fLink">Nuoroda į parduotuvę (nebūtina)</label>
+    <label for="fLink">Nuoroda į dovaną *</label>
     <input id="fLink" type="url" placeholder="https://…">
     <label for="fImg">Nuotraukos adresas (nebūtina)</label>
     <input id="fImg" type="url" placeholder="https://…/nuotrauka.jpg">
@@ -381,7 +381,7 @@ function render(){
     : `Išrinkta <b>${taken}</b> iš <b>${total}</b> dovanų`;
 
   const admin = !!pin;
-  $('#adminBar').innerHTML = admin ? `<div class="admin-bar">✏️ Tėvų režimas <button id="logout">Baigti</button></div>` : '';
+  $('#adminBar').innerHTML = admin ? `<div class="admin-bar">✏️ Tėvų režimas – pildykite sąrašą <button id="logout">Baigti</button></div>` : '';
   if (admin) $('#logout').onclick = () => { pin=''; LS.set('lk_pin',''); render(); toast('Tėvų režimas išjungtas'); };
 
   let list = items;
@@ -392,12 +392,11 @@ function render(){
     const qty = it.qty || 1, n = it.res.length, isFull = n >= qty;
     const iAmIn = it.res.some(r => mine[r.rid]);
     const art = it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode('${esc(it.emoji||'🎁')}'))">` : esc(it.emoji || '🎁');
-    const givers = it.res.map(r => {
-      const can = mine[r.rid] || admin;
-      return `<span class="giver ${can?'':'solo'}">🎁 ${esc(r.name)}${can ? ` <button data-un="${esc(it.id)}|${esc(r.rid)}">${mine[r.rid] ? 'Atšaukti' : '✕'}</button>` : ''}</span>`;
-    }).join('');
+    const givers = it.res.filter(r => mine[r.rid] || admin).map(r => mine[r.rid]
+      ? `<span class="giver">💛 Jūs dovanojate <button data-un="${esc(it.id)}|${esc(r.rid)}">Atšaukti</button></span>`
+      : `<span class="giver">🎁 Išrinkta <button data-un="${esc(it.id)}|${esc(r.rid)}">Panaikinti</button></span>`).join('');
     let btn;
-    if (isFull) btn = `<button class="btn btn-ghost" disabled>${iAmIn ? '💛 Jūs dovanojate' : '✓ Jau išrinkta'}</button>`;
+    if (isFull) btn = `<button class="btn btn-ghost" disabled>✓ Jau išrinkta</button>`;
     else if (iAmIn && qty > 1) btn = `<button class="btn btn-gift" data-res="${esc(it.id)}">🎁 Dovanosiu dar vieną</button>`;
     else btn = `<button class="btn btn-gift" data-res="${esc(it.id)}">🎁 Dovanosiu aš</button>`;
     return `<article class="card ${isFull?'done':''} ${iAmIn?'mine':''}" style="--i:${i}">
@@ -405,16 +404,17 @@ function render(){
       <div class="head"><div class="art">${art}</div>
         <div>${it.prio ? '<div class="prio">⭐ Labiausiai norėtų</div>' : ''}<h3>${esc(it.title)}</h3></div></div>
       ${it.desc ? `<p>${esc(it.desc)}</p>` : ''}
-      <div class="meta">${it.price ? `<span class="pill">${esc(it.price)}</span>` : ''}${it.link ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Kur nupirkti ↗</a>` : ''}</div>
+      ${it.price ? `<div class="meta"><span class="pill">${esc(it.price)}</span></div>` : ''}
       ${qty > 1 ? `<div class="qty"><span>${n} iš ${qty}</span><span class="bar"><i style="width:${Math.min(100,n/qty*100)}%"></i></span></div>` : ''}
       ${givers ? `<div class="givers">${givers}</div>` : ''}
       <div class="spacer"></div>
+      ${it.link ? `<a class="btn btn-link" href="${esc(it.link)}" target="_blank" rel="noopener">Pažiūrėti dovaną ↗</a>` : ''}
       ${btn}
       ${admin ? `<div class="admin-row"><button data-up="${esc(it.id)}" aria-label="Aukštyn">↑</button><button data-down="${esc(it.id)}" aria-label="Žemyn">↓</button><button data-edit="${esc(it.id)}">Keisti</button><button class="del" data-del="${esc(it.id)}">Trinti</button></div>` : ''}
     </article>`;
   }).join('');
   if (admin) html += `<button class="add-card" id="addBtn"><div><big>＋</big>Pridėti norą</div></button>`;
-  if (!html) html = `<div class="empty">${filter === 'taken' ? 'Kol kas niekas neišrinkta – būkite pirmas! 🎁' : filter === 'free' ? 'Visi norai jau išrinkti 🎉' : 'Sąrašas kol kas tuščias.'}</div>`;
+  if (!html) html = `<div class="empty">${filter === 'taken' ? 'Kol kas niekas neišrinkta – būkite pirmas! 🎁' : filter === 'free' ? 'Visi norai jau išrinkti 🎉' : (pin ? 'Sąrašas tuščias – pridėkite pirmą norą 👇' : 'Liepos norų sąrašas netrukus bus papildytas 🎄')}</div>`;
   $('#grid').innerHTML = html;
   if (admin) $('#addBtn').onclick = () => openEdit(null);
 }
@@ -439,32 +439,26 @@ function openReserve(id, btn){
   const it = items.find(x => x.id === id); if (!it) return;
   resId = id; resBtn = btn;
   $('#resPreview').innerHTML = `<div class="art">${it.img ? `<img src="${esc(it.img)}" alt="">` : esc(it.emoji||'🎁')}</div><div><b>${esc(it.title)}</b>${it.price ? `<div class="hint" style="margin:2px 0 0">${esc(it.price)}</div>` : ''}</div>`;
-  $('#resName').value = LS.get('lk_name', '');
-  openVeil('#resVeil'); setTimeout(() => $('#resName').focus(), 250);
+  openVeil('#resVeil');
 }
 $('#resOk').onclick = async () => {
-  const name = $('#resName').value.trim();
-  if (!name) { $('#resName').focus(); $('#resName').style.borderColor = 'var(--berry)'; toast('Įrašykite savo vardą 🙂'); return; }
-  $('#resName').style.borderColor = '';
-  LS.set('lk_name', name);
   const btn = $('#resOk'); btn.disabled = true; btn.textContent = 'Saugoma…';
   busy = true;
   try {
-    const res = await api({ a:'reserve', id: resId, name, tok: myTok });
+    const res = await api({ a:'reserve', id: resId, name: '', tok: myTok });
     if (res.rid) { mine[res.rid] = 1; LS.set('lk_mine', mine); }
     if (res.items) items = res.items;
     closeVeils(); render();
-    if (res.ok) { burst(resBtn); toast(`Ačiū, ${name}! Liepa bus labai laiminga 🤍`); }
+    if (res.ok) { burst(resBtn); toast('Ačiū! Liepa bus labai laiminga 🤍'); }
     else toast(res.error === 'taken' ? 'Oi, šią dovaną ką tik išsirinko kažkas kitas 🙈' : 'Nepavyko išsaugoti, pabandykite dar kartą');
   } catch(e) { toast('Nepavyko prisijungti, pabandykite dar kartą'); }
   busy = false; btn.disabled = false; btn.textContent = 'Taip, dovanosiu';
 };
-$('#resName').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resOk').click(); });
 
 async function unreserve(id, rid){
   const it = items.find(x => x.id === id); const r = it && it.res.find(r => r.rid === rid);
   if (!r) return;
-  const msg = mine[rid] ? `Atšaukti jūsų pasirinkimą „${it.title}“?` : `Pašalinti ${r.name} rezervaciją „${it.title}“?`;
+  const msg = mine[rid] ? `Atšaukti jūsų pasirinkimą „${it.title}“?` : `Panaikinti šios dovanos pažymėjimą („${it.title}“)?`;
   if (!confirm(msg)) return;
   busy = true;
   try {
@@ -476,7 +470,13 @@ async function unreserve(id, rid){
 }
 
 /* tėvų režimas */
-$('#adminBtn').onclick = () => { if (pin) { toast('Tėvų režimas jau įjungtas'); return; } $('#pinInput').value=''; openVeil('#pinVeil'); setTimeout(()=>$('#pinInput').focus(),250); };
+async function parentLink(){
+  const m = location.hash.match(/^#tevams(?:=(.+))?$/); if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (pin) return;
+  if (m[1]) { try { const res = await api({ a:'check', pin: decodeURIComponent(m[1]) }); if (res.ok) { pin = decodeURIComponent(m[1]); LS.set('lk_pin', pin); render(); toast('Sveiki! Galite pildyti norų sąrašą ✏️'); return; } } catch(e) {} }
+  $('#pinInput').value=''; openVeil('#pinVeil'); setTimeout(()=>$('#pinInput').focus(),250);
+}
 $('#pinOk').onclick = async () => {
   const p = $('#pinInput').value.trim(); if (!p) return;
   try {
@@ -494,7 +494,7 @@ function openEdit(it){
   $('#editTitle').textContent = it ? 'Keisti norą' : 'Naujas noras';
   $('#fTitle').value = it ? it.title : ''; $('#fDesc').value = it ? (it.desc||'') : '';
   $('#fPrice').value = it ? (it.price||'') : ''; $('#fQty').value = it ? (it.qty||1) : 1;
-  $('#fLink').value = it ? (it.link||'') : ''; $('#fImg').value = it ? (it.img||'') : '';
+  $('#fLink').value = it ? (it.link||'') : ''; $('#fImg').value = it ? (it.img||'') : ''; $('#fLink').style.borderColor = '';
   $('#fPrio').checked = !!(it && it.prio);
   const list = EMOJIS.includes(pickEmoji) ? EMOJIS : [pickEmoji, ...EMOJIS];
   $('#emojiPick').innerHTML = list.map(e => `<button type="button" class="${e===pickEmoji?'act':''}">${e}</button>`).join('');
@@ -506,8 +506,12 @@ $('#emojiPick').addEventListener('click', e => {
 });
 $('#editOk').onclick = async () => {
   const title = $('#fTitle').value.trim(); if (!title) { $('#fTitle').focus(); toast('Įrašykite pavadinimą'); return; }
+  let link = $('#fLink').value.trim();
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+  if (!/^https?:\/\/[^\s.]+\.[^\s]+/i.test(link)) { $('#fLink').focus(); $('#fLink').style.borderColor = 'var(--berry)'; toast('Įklijuokite nuorodą į dovaną'); return; }
+  $('#fLink').style.borderColor = '';
   const item = { id: editing, title, desc: $('#fDesc').value.trim(), price: $('#fPrice').value.trim(), qty: +$('#fQty').value || 1,
-    link: $('#fLink').value.trim(), img: $('#fImg').value.trim(), emoji: pickEmoji, prio: $('#fPrio').checked };
+    link, img: $('#fImg').value.trim(), emoji: pickEmoji, prio: $('#fPrio').checked };
   const btn = $('#editOk'); btn.disabled = true; busy = true;
   try {
     const res = await api({ a:'save', pin, item });
@@ -592,7 +596,8 @@ function countdown(){
 })();
 
 if (!API) $('#demoNote').innerHTML = `<div class="demo">Demonstracinis režimas – pasirinkimai saugomi tik šiame įrenginyje. Tėvų PIN: ${DEMO_PIN}</div>`;
-countdown(); refresh();
+countdown(); refresh(); parentLink();
+addEventListener('hashchange', parentLink);
 setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 </script>
