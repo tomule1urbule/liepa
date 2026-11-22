@@ -163,6 +163,12 @@
   .emojis{display:flex;flex-wrap:wrap;gap:6px}
   .emojis button{width:42px;height:42px;border-radius:12px;border:1.5px solid #e6dac4;background:#fff;font-size:22px;cursor:pointer}
   .emojis button.act{border-color:var(--berry);background:#fbe4e2}
+  .photo-row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+  .photo-prev{width:64px;height:64px;border-radius:14px;background:#fff;border:1.5px solid #e6dac4;display:grid;place-items:center;overflow:hidden;flex:none;font-size:26px}
+  .photo-prev img{width:100%;height:100%;object-fit:contain}
+  .up-btn{flex:1;border:1.5px dashed #c9b994;background:#fff;border-radius:14px;padding:12px;font:800 15px Nunito,system-ui,sans-serif;color:#6b5a3e;cursor:pointer;text-align:center}
+  .up-btn input{display:none}
+  .x-btn{border:0;background:#f1e7d4;color:var(--berry);border-radius:12px;padding:10px 12px;font:800 13px Nunito,system-ui,sans-serif;cursor:pointer}
   .check{display:flex;align-items:center;gap:10px;font-weight:700;margin-top:14px;cursor:pointer}
   .check input{width:22px;height:22px;accent-color:var(--berry)}
   .actions{display:flex;gap:10px;margin-top:20px}
@@ -257,8 +263,6 @@
   <div class="sheet" role="dialog" aria-modal="true">
     <div class="grab"></div>
     <h2 id="editTitle">Naujas noras</h2>
-    <label>Ženkliukas (jei nebus nuotraukos)</label>
-    <div class="emojis" id="emojiPick"></div>
     <label for="fTitle">Pavadinimas</label>
     <input id="fTitle" maxlength="120" placeholder="pvz. Minkšta knygelė">
     <label for="fDesc">Aprašymas</label>
@@ -270,8 +274,15 @@
     <label for="fLink">Nuoroda į dovaną *</label>
     <input id="fLink" type="url" placeholder="https://…">
     <label for="fImg">Nuotrauka</label>
-    <input id="fImg" type="url" placeholder="Paimama automatiškai iš nuorodos">
-    <p class="hint">Palikite tuščią – nuotrauką paimsime iš dovanos puslapio. Kai kurios parduotuvės (pvz. Notino, Senukai) to neleidžia – tada parduotuvėje ilgai palaikykite pirštą ant nuotraukos → „Kopijuoti vaizdo adresą“ ir įklijuokite čia.</p>
+    <div class="photo-row">
+      <div class="photo-prev" id="photoPrev">🖼️</div>
+      <label class="up-btn">📷 Įkelti nuotrauką<input type="file" id="fFile" accept="image/*"></label>
+      <button type="button" class="x-btn" id="photoClear" hidden>Pašalinti</button>
+    </div>
+    <input id="fImg" type="url" placeholder="arba nuotraukos adresas https://…">
+    <p class="hint">Palikite tuščią – nuotrauką paimsime iš dovanos puslapio automatiškai. Kai kurios parduotuvės (pvz. Notino, Senukai) to neleidžia – tada įkelkite nuotrauką ar ekrano kopiją iš telefono.</p>
+    <label>Ženkliukas (jei nebus nuotraukos)</label>
+    <div class="emojis" id="emojiPick"></div>
     <label class="check"><input type="checkbox" id="fPrio"> ⭐ Labiausiai norėtų</label>
     <div class="actions">
       <button class="btn btn-ghost" data-close>Atšaukti</button>
@@ -305,6 +316,7 @@ function euro(v){
 function priceInput(v){ // stored form: numbers only, e.g. "12", "12,50", "40–60"
   return String(v || '').replace(/eur(ų|ai|as)?|€/gi, '').replace(/\s*[-–—]\s*/g, '–').replace(/\./g, ',').replace(/[^\d,–]/g, '').replace(/^–+|–+$/g, '');
 }
+let listVer = '';
 let items = [], filter = 'all', loaded = false, busy = false;
 let pin = LS.get('lk_pin', '');
 let mine = LS.get('lk_mine', {});          // rid -> token
@@ -359,11 +371,12 @@ const demo = {
 async function api(body){
   if (!API) { await new Promise(r => setTimeout(r, 250)); return demo.handle(body); }
   if (body.a === 'list') {
-    const r = await fetch(API + '?t=' + Date.now(), { cache:'no-store' });
+    const r = await fetch(API + '?t=' + Date.now() + (body.v ? '&v=' + encodeURIComponent(body.v) : ''), { cache:'no-store' });
     return r.json();
   }
   const r = await fetch(API, { method:'POST', body: JSON.stringify(body) });  // text/plain → be CORS preflight
-  return r.json();
+  const j = await r.json(); if (j && j.items && j.ver) listVer = j.ver;
+  return j;
 }
 
 function setSync(ok){
@@ -372,11 +385,12 @@ function setSync(ok){
     : '<span class="dot off"></span> Nepavyko prisijungti – bandysime dar kartą';
 }
 
-async function refresh(){
+async function refresh(full){
   if (busy) return;
   try {
-    const res = await api({ a:'list' });
-    if (res && res.ok) { items = res.items || []; loaded = true; render(); setSync(true); }
+    const res = await api({ a:'list', v: full || !loaded ? '' : listVer });
+    if (res && res.ok && res.same) { setSync(true); return; }
+    if (res && res.ok) { items = res.items || []; listVer = res.ver || ''; loaded = true; render(); setSync(true); }
   } catch(e) { setSync(false); if (!loaded) $('#grid').innerHTML = '<div class="empty">Nepavyko įkelti sąrašo. Patikrinkite interneto ryšį ir perkraukite puslapį.</div>'; }
 }
 
@@ -507,18 +521,48 @@ $('#pinOk').onclick = async () => {
 $('#pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#pinOk').click(); });
 
 const EMOJIS = ['🎁','🧸','📖','🦷','🥣','🛁','🌙','🎵','❄️','🐷','🧦','👶','🍼','🎈','🦒','🐰','🧩','🚂','🌟','💝'];
-let editing = null, pickEmoji = '🎁';
+let editing = null, pickEmoji = '🎁', upImg = '';
+function showPhoto(){
+  const src = upImg || ($('#fImg').value.trim().match(/^https?:\/\//) ? $('#fImg').value.trim() : '');
+  $('#photoPrev').innerHTML = src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : '🖼️';
+  $('#photoClear').hidden = !src;
+}
+function shrink(file){ // → small JPEG data URL (fits in the Sheet)
+  return new Promise((ok, bad) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      let size = 420, q = .8, out = '';
+      for (let i = 0; i < 6; i++) {
+        const k = Math.min(1, size / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
+        out = c.toDataURL('image/jpeg', q);
+        if (out.length <= 40000) break;
+        size = Math.round(size * .82); q = Math.max(.55, q - .07);
+      }
+      URL.revokeObjectURL(url); out.length <= 42000 ? ok(out) : bad();
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); bad(); };
+    im.src = url;
+  });
+}
 function openEdit(it){
   editing = it ? it.id : null; pickEmoji = (it && it.emoji) || '🎁';
   $('#editTitle').textContent = it ? 'Keisti norą' : 'Naujas noras';
   $('#fTitle').value = it ? it.title : ''; $('#fDesc').value = it ? (it.desc||'') : '';
   $('#fPrice').value = it ? priceInput(it.price) : ''; $('#fQty').value = it ? (it.qty||1) : 1;
-  $('#fLink').value = it ? (it.link||'') : ''; $('#fImg').value = it ? (it.img||'') : ''; $('#fLink').style.borderColor = '';
+  $('#fLink').value = it ? (it.link||'') : ''; upImg = it && /^data:/.test(it.img||'') ? it.img : ''; $('#fImg').value = it && !upImg ? (it.img||'') : ''; $('#fLink').style.borderColor = ''; showPhoto();
   $('#fPrio').checked = !!(it && it.prio);
   const list = EMOJIS.includes(pickEmoji) ? EMOJIS : [pickEmoji, ...EMOJIS];
   $('#emojiPick').innerHTML = list.map(e => `<button type="button" class="${e===pickEmoji?'act':''}">${e}</button>`).join('');
   openVeil('#editVeil');
 }
+$('#fFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { upImg = await shrink(f); $('#fImg').value = ''; showPhoto(); } catch(err) { toast('Nepavyko įkelti šios nuotraukos'); }
+});
+$('#fImg').addEventListener('input', () => { if ($('#fImg').value.trim()) upImg = ''; showPhoto(); });
+$('#photoClear').onclick = () => { upImg = ''; $('#fImg').value = ''; showPhoto(); };
 $('#emojiPick').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   pickEmoji = b.textContent; [...$('#emojiPick').children].forEach(x => x.classList.toggle('act', x === b));
@@ -530,14 +574,14 @@ $('#editOk').onclick = async () => {
   if (!/^https?:\/\/[^\s.]+\.[^\s]+/i.test(link)) { $('#fLink').focus(); $('#fLink').style.borderColor = 'var(--berry)'; toast('Įklijuokite nuorodą į dovaną'); return; }
   $('#fLink').style.borderColor = '';
   const item = { id: editing, title, desc: $('#fDesc').value.trim(), price: priceInput($('#fPrice').value), qty: +$('#fQty').value || 1,
-    link, img: $('#fImg').value.trim(), emoji: pickEmoji, prio: $('#fPrio').checked };
-  const btn = $('#editOk'); btn.disabled = true; btn.textContent = 'Ieškoma nuotraukos…'; busy = true;
+    link, img: upImg || $('#fImg').value.trim(), emoji: pickEmoji, prio: $('#fPrio').checked };
+  const btn = $('#editOk'); btn.disabled = true; btn.textContent = (upImg || $('#fImg').value.trim()) ? 'Saugoma…' : 'Ieškoma nuotraukos…'; busy = true;
   try {
     const res = await api({ a:'save', pin, item });
     if (res.items) {
       items = res.items; closeVeils(); render();
       const saved = editing ? items.find(x => x.id === editing) : items.find(x => x.link === item.link && x.title === item.title);
-      toast((editing ? 'Pakeista ✓' : 'Noras pridėtas 🎄') + (saved && !saved.img ? ' Nuotraukos automatiškai rasti nepavyko – galite įklijuoti jos adresą (Keisti → Nuotrauka).' : ''));
+      toast((editing ? 'Pakeista ✓' : 'Noras pridėtas 🎄') + (saved && !saved.img ? ' Ši parduotuvė neleidžia paimti nuotraukos – paspauskite „Keisti“ ir įkelkite ją iš telefono 📷' : ''));
     }
     else if (res.error === 'unauthorized') { pin=''; LS.set('lk_pin',''); closeVeils(); render(); toast('PIN nebetinka – prisijunkite iš naujo'); }
     else toast('Nepavyko išsaugoti');
@@ -622,7 +666,7 @@ if (!API) $('#demoNote').innerHTML = `<div class="demo">Demonstracinis režimas 
 countdown(); refresh(); parentLink();
 addEventListener('hashchange', parentLink);
 setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(true); });
 </script>
 </body>
 </html>

@@ -70,7 +70,7 @@ function publicItem_(it) {
 function list_(sh) {
   const items = readAll_(sh).map(x => publicItem_(x.it));
   items.sort((a, b) => (a.order || 0) - (b.order || 0));
-  return { ok: true, now: Date.now(), items: items };
+  return { ok: true, now: Date.now(), ver: ver_(), items: items };
 }
 
 const UAS_ = [
@@ -139,13 +139,18 @@ function photoFrom_(url) {
   return '';
 }
 
+function bump_() { const p = PropertiesService.getScriptProperties(); p.setProperty('VER', String((+p.getProperty('VER') || 0) + 1)); }
+function ver_() { return PropertiesService.getScriptProperties().getProperty('VER') || '0'; }
+
 function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function clean_(s, n) { return String(s == null ? '' : s).replace(/[<>]/g, '').trim().slice(0, n); }
 
-function doGet() {
+function doGet(e) {
+  const v = e && e.parameter && e.parameter.v;
+  if (v && v === ver_()) return out_({ ok: true, same: true, ver: v });   // nothing changed – skip the big payload
   return out_(list_(sheet_()));
 }
 
@@ -169,6 +174,7 @@ function doPost(e) {
       if (it.res.length >= (it.qty || 1)) return out_(Object.assign(list_(sh), { ok: false, error: 'taken' }));
       it.res.push({ rid: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: clean_(b.name, 40) || 'Slaptas Kalėdų senelis', ts: Date.now(), tok: clean_(b.tok, 64) });
       sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(it)]);
+      bump_();
       return out_(Object.assign(list_(sh), { rid: it.res[it.res.length - 1].rid }));
     }
 
@@ -181,6 +187,7 @@ function doPost(e) {
       if (!admin && (!b.tok || r.tok !== b.tok)) return out_({ ok: false, error: 'forbidden' });
       it.res = it.res.filter(q => q.rid !== b.rid);
       sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(it)]);
+      bump_();
       return out_(list_(sh));
     }
 
@@ -196,7 +203,7 @@ function doPost(e) {
         desc: clean_(s.desc, 500),
         price: clean_(s.price, 30),
         link: cleanLink_(s.link),
-        img: /^https?:\/\//i.test(s.img || '') ? String(s.img).slice(0, 600) : '',
+        img: /^https?:\/\//i.test(s.img || '') ? String(s.img).slice(0, 600) : (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s.img || '') && s.img.length <= 42000 ? s.img : ''),
         emoji: clean_(s.emoji, 8) || '🎁',
         qty: Math.max(1, Math.min(50, parseInt(s.qty, 10) || 1)),
         prio: s.prio ? 1 : 0
@@ -209,6 +216,7 @@ function doPost(e) {
       } else it.imgAuto = keptAuto ? oldAuto : '';
       if (x) sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(it)]);
       else sh.appendRow(rowOf_(it));
+      bump_();
       return out_(list_(sh));
     }
 
@@ -225,12 +233,14 @@ function doPost(e) {
       all.forEach(x => {
         if (x.it.link && !x.it.img) { const ph = photoFrom_(x.it.link); if (ph) { x.it.img = ph; x.it.imgAuto = x.it.link; n++; sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(x.it)]); } }
       });
+      bump_();
       return out_(Object.assign(list_(sh), { found: n }));
     }
 
     if (b.a === 'delete') {
       const x = find(b.id);
       if (x) sh.deleteRow(x.row);
+      bump_();
       return out_(list_(sh));
     }
 
@@ -240,6 +250,7 @@ function doPost(e) {
         const k = ids.indexOf(x.it.id);
         if (k >= 0 && x.it.order !== k) { x.it.order = k; sh.getRange(x.row, 1, 1, 4).setValues([rowOf_(x.it)]); }
       });
+      bump_();
       return out_(list_(sh));
     }
 
