@@ -1746,8 +1746,32 @@ document.addEventListener("visibilitychange", () => { if(document.visibilityStat
 addEventListener("online", () => { setSync(syncState); sync(); });
 addEventListener("offline", () => setSync(syncState));
 if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
-  if(ev.data?.type==="updated") toast("Yra nauja programėlės versija", "Atnaujinti", () => location.reload());
+  if(ev.data?.type==="updated") applyUpdate();
 });
+/* Automatic updates: compare this page's version with the published one when the app is opened or
+   brought back to the screen (iPhone keeps home-screen apps suspended, so a plain reopen isn't enough). */
+const APP_V = "liepa-v43";
+let lastUpdCheck = 0;
+function applyUpdate(){
+  if($("#scrim").classList.contains("show")){ toast("Yra nauja programėlės versija", "Atnaujinti", () => location.reload()); return; }
+  location.reload();
+}
+async function checkUpdate(){
+  if(!navigator.onLine || Date.now() - lastUpdCheck < 60e3) return; lastUpdCheck = Date.now();
+  try{
+    const t = await (await fetch("sw.js?t=" + Date.now(), {cache:"no-store"})).text();
+    const v = (t.match(/CACHE = "([^"]+)"/) || [])[1];
+    if(!v || v === APP_V) return;
+    const key = "lp_upd_" + v; if(sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1");   // try once per version
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if(reg){
+      navigator.serviceWorker.addEventListener("controllerchange", applyUpdate, {once:true});
+      await reg.update();
+      setTimeout(applyUpdate, 8000);   // fallback if the switch is not reported
+    } else applyUpdate();
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") checkUpdate(); });
 
 /* =========================================================
    Boot
@@ -1764,6 +1788,7 @@ addEventListener("hashchange", () => { if(pairFromHash()){ render(); sync(); } }
   render(); setSync(""); sync();
   if(!who) setTimeout(whoSheet, 400);
   if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+  setTimeout(checkUpdate, 2000);
 })();
 </script>
 </body>
