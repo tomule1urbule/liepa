@@ -271,7 +271,7 @@
     <input id="fLink" type="url" placeholder="https://…">
     <label for="fImg">Nuotrauka</label>
     <input id="fImg" type="url" placeholder="Paimama automatiškai iš nuorodos">
-    <p class="hint">Palikite tuščią – nuotrauką paimsime iš dovanos puslapio. Jei nepavyks, rodysime pasirinktą ženkliuką. Norėdami kitos nuotraukos, įklijuokite jos adresą.</p>
+    <p class="hint">Palikite tuščią – nuotrauką paimsime iš dovanos puslapio. Kai kurios parduotuvės (pvz. Notino, Senukai) to neleidžia – tada parduotuvėje ilgai palaikykite pirštą ant nuotraukos → „Kopijuoti vaizdo adresą“ ir įklijuokite čia.</p>
     <label class="check"><input type="checkbox" id="fPrio"> ⭐ Labiausiai norėtų</label>
     <div class="actions">
       <button class="btn btn-ghost" data-close>Atšaukti</button>
@@ -537,7 +537,7 @@ $('#editOk').onclick = async () => {
     if (res.items) {
       items = res.items; closeVeils(); render();
       const saved = editing ? items.find(x => x.id === editing) : items.find(x => x.link === item.link && x.title === item.title);
-      toast((editing ? 'Pakeista ✓' : 'Noras pridėtas 🎄') + (saved && !saved.img ? ' Nuotraukos rasti nepavyko – rodomas ženkliukas.' : ''));
+      toast((editing ? 'Pakeista ✓' : 'Noras pridėtas 🎄') + (saved && !saved.img ? ' Nuotraukos automatiškai rasti nepavyko – galite įklijuoti jos adresą (Keisti → Nuotrauka).' : ''));
     }
     else if (res.error === 'unauthorized') { pin=''; LS.set('lk_pin',''); closeVeils(); render(); toast('PIN nebetinka – prisijunkite iš naujo'); }
     else toast('Nepavyko išsaugoti');
