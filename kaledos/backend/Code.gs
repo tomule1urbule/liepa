@@ -132,7 +132,7 @@ function photoFrom_(url) {
     try {
       const res = get_(url, UAS_[i]);
       if (res.getResponseCode() >= 400) continue;
-      const ph = photoInHtml_(res.getContentText().slice(0, 800000), url);
+      const ph = photoInHtml_(res.getContentText().slice(0, 3000000), url);
       if (ph) return ph;
     } catch (e) {}
   }
@@ -215,7 +215,7 @@ function doPost(e) {
     if (b.a === 'probe') {   // diagnostics: what does the shop return to this server?
       const url = cleanLink_(b.url);
       return out_({ ok: true, url: url, tries: UAS_.map(ua => {
-        try { const r = get_(url, ua), t = r.getContentText(); return { code: r.getResponseCode(), len: t.length, title: (t.match(/<title[^>]*>([^<]{0,80})/i) || [])[1] || '', photo: photoInHtml_(t.slice(0, 800000), url) }; }
+        try { const r = get_(url, ua), t = r.getContentText(); return { code: r.getResponseCode(), len: t.length, title: (t.match(/<title[^>]*>([^<]{0,80})/i) || [])[1] || '', photo: photoInHtml_(t.slice(0, 3000000), url) }; }
         catch (e) { return { error: String(e).slice(0, 200) }; }
       }) });
     }
